@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Vouchers — Vouchr</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo">Vouchr</a>
+      <nav class="nav-user">
+        <span class="user-label">Recipient</span>
+        <a href="login.html" class="text-link">Log out</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="dashboard">
+    <div class="container">
+      <div class="page-header">
+        <div>
+          <p class="eyebrow">Hello</p>
+          <h1>Your active vouchers</h1>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <span class="stat-value">3</span>
+          <span class="stat-label">Active</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value">R 1,250</span>
+          <span class="stat-label">Total value</span>
+        </div>
+      </div>
+
+      <section class="voucher-list">
+        <article class="voucher-card">
+          <div class="voucher-top">
+            <span class="voucher-org">Hope Community Trust</span>
+            <span class="badge badge-active">Active</span>
+          </div>
+          <h3>Food & essentials</h3>
+          <p class="voucher-amount">R 500 remaining</p>
+          <div class="voucher-meta">
+            <span>Expires 30 Sep 2026</span>
+            <span>Code: VH-48291</span>
+          </div>
+          <button class="btn btn-primary btn-sm">Show QR / Redeem</button>
+        </article>
+
+        <article class="voucher-card">
+          <div class="voucher-top">
+            <span class="voucher-org">CareBridge NPO</span>
+            <span class="badge badge-active">Active</span>
+          </div>
+          <h3>Clothing & hygiene</h3>
+          <p class="voucher-amount">R 350 remaining</p>
+          <div class="voucher-meta">
+            <span>Expires 15 Oct 2026</span>
+            <span>Code: VH-77103</span>
+          </div>
+          <button class="btn btn-primary btn-sm">Show QR / Redeem</button>
+        </article>
+
+        <article class="voucher-card">
+          <div class="voucher-top">
+            <span class="voucher-org">Hope Community Trust</span>
+            <span class="badge badge-active">Active</span>
+          </div>
+          <h3>School supplies</h3>
+          <p class="voucher-amount">R 400 remaining</p>
+          <div class="voucher-meta">
+            <span>Expires 20 Sep 2026</span>
+            <span>Code: VH-22914</span>
+          </div>
+          <button class="btn btn-primary btn-sm">Show QR / Redeem</button>
+        </article>
+      </section>
+
+      <p class="muted center-text mt-lg">
+        Present the voucher at any participating store. Staff will scan or enter the code.
+      </p>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

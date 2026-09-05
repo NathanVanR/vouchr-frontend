@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Organization Vouchers — Vouchr</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo">Vouchr</a>
+      <nav class="nav-user">
+        <span class="user-label">Hope Community Trust</span>
+        <a href="login.html" class="text-link">Log out</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="dashboard">
+    <div class="container">
+      <div class="page-header">
+        <div>
+          <p class="eyebrow">Staff dashboard</p>
+          <h1>Organization vouchers</h1>
+        </div>
+        <button class="btn btn-primary">Issue new voucher</button>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <span class="stat-value">47</span>
+          <span class="stat-label">Active vouchers</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value">128</span>
+          <span class="stat-label">Issued this month</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value">R 42,800</span>
+          <span class="stat-label">Value in circulation</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value">81%</span>
+          <span class="stat-label">Redeemed</span>
+        </div>
+      </div>
+
+      <section class="table-section">
+        <div class="table-header">
+          <h2>Recent vouchers</h2>
+          <div class="filters">
+            <button class="filter-btn active">All</button>
+            <button class="filter-btn">Active</button>
+            <button class="filter-btn">Redeemed</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Recipient</th>
+                <th>Category</th>
+                <th>Value</th>
+                <th>Status</th>
+                <th>Issued</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>VH-48291</code></td>
+                <td>Thabo M.</td>
+                <td>Food & essentials</td>
+                <td>R 500</td>
+                <td><span class="badge badge-active">Active</span></td>
+                <td>2 Sep 2026</td>
+              </tr>
+              <tr>
+                <td><code>VH-77103</code></td>
+                <td>Lerato K.</td>
+                <td>Clothing</td>
+                <td>R 350</td>
+                <td><span class="badge badge-active">Active</span></td>
+                <td>1 Sep 2026</td>
+              </tr>
+              <tr>
+                <td><code>VH-22914</code></td>
+                <td>Sipho N.</td>
+                <td>School supplies</td>
+                <td>R 400</td>
+                <td><span class="badge badge-active">Active</span></td>
+                <td>28 Aug 2026</td>
+              </tr>
+              <tr>
+                <td><code>VH-11082</code></td>
+                <td>Nomsa D.</td>
+                <td>Food & essentials</td>
+                <td>R 600</td>
+                <td><span class="badge badge-redeemed">Redeemed</span></td>
+                <td>25 Aug 2026</td>
+              </tr>
+              <tr>
+                <td><code>VH-99301</code></td>
+                <td>Johan P.</td>
+                <td>Hygiene kit</td>
+                <td>R 250</td>
+                <td><span class="badge badge-redeemed">Redeemed</span></td>
+                <td>22 Aug 2026</td>
+              </tr>
+              <tr>
+                <td><code>VH-55420</code></td>
+                <td>Aisha B.</td>
+                <td>Food & essentials</td>
+                <td>R 450</td>
+                <td><span class="badge badge-expired">Expired</span></td>
+                <td>10 Aug 2026</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
