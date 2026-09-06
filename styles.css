@@ -157,6 +157,12 @@ p {
   letter-spacing: -0.01em;
 }
 
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
 .nav-user {
   display: flex;
   align-items: center;
@@ -602,6 +608,61 @@ p {
   background: var(--surface-secondary);
   padding: 0.15rem 0.4rem;
   border-radius: 4px;
+}
+
+/* Auth footer link */
+.auth-footer {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+/* Role selector (registration) */
+.role-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.25rem;
+}
+
+.role-option {
+  cursor: pointer;
+}
+
+.role-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.role-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--canvas);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.role-card strong {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.role-card small {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.role-option input:checked + .role-card {
+  border-color: var(--text);
+  background: var(--surface-secondary);
+}
+
+.role-option:hover .role-card {
+  border-color: var(--text-secondary);
 }
 
 /* Responsive tweaks */

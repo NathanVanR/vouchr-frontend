@@ -1,52 +1,89 @@
-// Vouchr — basic client-side behavior
-// Ready for Firebase Authentication integration later
+// app.js
+import {
+  auth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile
+} from "./firebase.js";
 
 document.addEventListener("DOMContentLoaded", () => {
-  const loginForm = document.getElementById("login-form");
 
+  // ——— Registration ———
+  const registerForm = document.getElementById("register-form");
+  if (registerForm) {
+    registerForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const fullName = document.getElementById("full-name").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const confirmPassword = document.getElementById("confirm-password").value;
+      const role = document.querySelector('input[name="role"]:checked')?.value || "recipient";
+
+      if (password !== confirmPassword) {
+        alert("Passwords do not match.");
+        return;
+      }
+
+      if (password.length < 6) {
+        alert("Password must be at least 6 characters.");
+        return;
+      }
+
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+
+        // Save display name
+        await updateProfile(userCredential.user, {
+          displayName: fullName
+        });
+
+        // Temporarily store role in localStorage.
+        // Later we will move this to your Spring API / database.
+        localStorage.setItem("vouchr_role", role);
+        localStorage.setItem("vouchr_name", fullName);
+
+        // Redirect
+        window.location.href = role === "staff" ? "employee.html" : "recipient.html";
+      } catch (error) {
+        console.error(error);
+        alert(error.message);
+      }
+    });
+  }
+
+  // ——— Login ———
+  const loginForm = document.getElementById("login-form");
   if (loginForm) {
-    loginForm.addEventListener("submit", (e) => {
+    loginForm.addEventListener("submit", async (e) => {
       e.preventDefault();
 
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
 
-      // Placeholder — replace with Firebase Auth
-      // firebase.auth().signInWithEmailAndPassword(email, password)...
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
 
-      if (!email || !password) {
-        alert("Please enter email and password.");
-        return;
-      }
-
-      // Demo: simple mock redirect based on email hint
-      // In production this would come from the user profile / claims
-      console.log("Login attempt:", { email });
-
-      if (email.toLowerCase().includes("staff") || email.toLowerCase().includes("org") || email.toLowerCase().includes("admin")) {
-        window.location.href = "employee.html";
-      } else {
-        window.location.href = "recipient.html";
+        const role = localStorage.getItem("vouchr_role") || "recipient";
+        window.location.href = role === "staff" ? "employee.html" : "recipient.html";
+      } catch (error) {
+        console.error(error);
+        alert(error.message);
       }
     });
   }
 
-  // Filter buttons on employee dashboard (visual only for now)
-  const filterBtns = document.querySelectorAll(".filter-btn");
-  filterBtns.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      filterBtns.forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      // Future: filter table rows by status
-    });
-  });
-
-  // Voucher redeem buttons (placeholder)
-  document.querySelectorAll(".voucher-card .btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const card = btn.closest(".voucher-card");
-      const code = card.querySelector(".voucher-meta span:last-child")?.textContent || "voucher";
-      alert(`Redeem flow for ${code}\n\n(QR code / partner terminal integration coming soon)`);
-    });
+  // ——— Logout ———
+  document.querySelectorAll('a[href="login.html"]').forEach(link => {
+    if (link.textContent.toLowerCase().includes("log out")) {
+      link.addEventListener("click", async (e) => {
+        e.preventDefault();
+        await signOut(auth);
+        localStorage.removeItem("vouchr_role");
+        localStorage.removeItem("vouchr_name");
+        window.location.href = "login.html";
+      });
+    }
   });
 });
