@@ -25,6 +25,25 @@
       <p class="muted">Join as a recipient or organization staff member.</p>
 
       <form id="register-form" class="auth-form">
+        <div class="form-group">
+          <label>I am registering as</label>
+          <div class="role-selector">
+            <label class="role-option">
+              <input type="radio" name="role" value="recipient" checked>
+              <span class="role-card">
+                <strong>Recipient</strong>
+                <small>I receive and redeem vouchers</small>
+              </span>
+            </label>
+            <label class="role-option">
+              <input type="radio" name="role" value="staff">
+              <span class="role-card">
+                <strong>Organization staff</strong>
+                <small>I manage vouchers for an existing organization</small>
+              </span>
+            </label>
+          </div>
+        </div>
         <div class="form-row">
           <div class="form-group">
             <label for="first-name">First name</label>
@@ -89,23 +108,97 @@
           >
         </div>
 
-        <div class="form-group">
-          <label>I am registering as</label>
-          <div class="role-selector">
-            <label class="role-option">
-              <input type="radio" name="role" value="recipient" checked>
-              <span class="role-card">
-                <strong>Recipient</strong>
-                <small>I receive and redeem vouchers</small>
-              </span>
-            </label>
-            <label class="role-option">
-              <input type="radio" name="role" value="staff">
-              <span class="role-card">
-                <strong>Organization staff</strong>
-                <small>I issue and manage vouchers</small>
-              </span>
-            </label>
+        
+
+        <!-- Recipient Specific Fields (Styled seamlessly with existing form structure) -->
+        <div id="recipient-fields">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="sa-id">SA ID number</label>
+              <input 
+                type="text" 
+                id="sa-id" 
+                name="sa-id" 
+                placeholder="13-digit ID number" 
+                required 
+                pattern="[0-9]{13}"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="phone-number">Phone number</label>
+              <input 
+                type="tel" 
+                id="phone-number" 
+                name="phone-number" 
+                placeholder="082 123 4567" 
+                required 
+                autocomplete="tel"
+              >
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="street-address">Street address</label>
+            <input 
+              type="text" 
+              id="street-address" 
+              name="street-address" 
+              placeholder="123 Main Street" 
+              required 
+              autocomplete="street-address"
+            >
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="suburb">Suburb</label>
+              <input 
+                type="text" 
+                id="suburb" 
+                name="suburb" 
+                placeholder="Suburb" 
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="city">City</label>
+              <input 
+                type="text" 
+                id="city" 
+                name="city" 
+                placeholder="City" 
+                required 
+                autocomplete="address-level2"
+              >
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="postal-code">Postal code</label>
+              <input 
+                type="text" 
+                id="postal-code" 
+                name="postal-code" 
+                placeholder="2194" 
+                required 
+                autocomplete="postal-code"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="province">Province</label>
+              <input 
+                type="text" 
+                id="province" 
+                name="province" 
+                placeholder="Gauteng" 
+                required 
+                autocomplete="address-level1"
+              >
+            </div>
           </div>
         </div>
 
@@ -114,6 +207,9 @@
 
       <p class="auth-footer muted small">
         Already have an account? <a href="login.html" class="text-link">Sign in</a>
+      </p>
+      <p class="auth-footer muted small">
+        Registering a new organization? <a href="register-org.html" class="text-link">Register here</a>
       </p>
     </div>
   </main>

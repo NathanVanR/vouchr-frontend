@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register Organization — Vouchr</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo">Vouchr</a>
+      <nav>
+        <a href="login.html" class="text-link">Already registered? Sign in</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="auth-page">
+    <div class="auth-card">
+      <h1>Register your organization</h1>
+      <p class="muted">Set up an organization account to issue and manage vouchers.</p>
+
+      <form id="register-org-form" class="auth-form">
+        <!-- Section: Organization Information -->
+        <div class="form-section">
+          <h2>Organization details</h2>
+          
+          <div class="form-group">
+            <label for="org-name">Organization name</label>
+            <input 
+              type="text" 
+              id="org-name" 
+              name="org-name" 
+              placeholder="e.g. Hope Community Foundation" 
+              required 
+              autocomplete="organization"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="org-type">Organization type</label>
+            <select id="org-type" name="org-type" required>
+              <option value="" disabled selected>Select type</option>
+              <option value="nonprofit">Non-Profit / NGO</option>
+              <option value="business">Business / Merchant</option>
+              <option value="government">Government / Public Sector</option>
+              <option value="educational">Educational Institution</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Section: Primary Admin Details -->
+        <div class="form-section">
+          <h2>Admin account</h2>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="first-name">First name</label>
+              <input 
+                type="text" 
+                id="first-name" 
+                name="first-name" 
+                placeholder="First name" 
+                required 
+                autocomplete="given-name"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="last-name">Last name</label>
+              <input 
+                type="text" 
+                id="last-name" 
+                name="last-name" 
+                placeholder="Last name" 
+                required 
+                autocomplete="family-name"
+              >
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="email">Work email</label>
+            <input 
+              type="email" 
+              id="email" 
+              name="email" 
+              placeholder="admin@organization.org" 
+              required 
+              autocomplete="email"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input 
+              type="password" 
+              id="password" 
+              name="password" 
+              placeholder="••••••••" 
+              required 
+              minlength="6"
+              autocomplete="new-password"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="confirm-password">Confirm password</label>
+            <input 
+              type="password" 
+              id="confirm-password" 
+              name="confirm-password" 
+              placeholder="••••••••" 
+              required 
+              minlength="6"
+              autocomplete="new-password"
+            >
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full">Register organization</button>
+      </form>
+
+      <p class="auth-footer muted small">
+        Looking for individual registration? <a href="register.html" class="text-link">Register as a recipient or staff member</a>
+      </p>
+    </div>
+  </main>
+
+  <script src="config.js"></script>
+  <script type="module" src="register-org.js"></script>
+</body>
+</html>
