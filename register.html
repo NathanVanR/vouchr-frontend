@@ -44,6 +44,7 @@
             </label>
           </div>
         </div>
+
         <div class="form-row">
           <div class="form-group">
             <label for="first-name">First name</label>
@@ -108,9 +109,7 @@
           >
         </div>
 
-        
-
-        <!-- Recipient Specific Fields (Styled seamlessly with existing form structure) -->
+        <!-- Recipient Specific Fields -->
         <div id="recipient-fields">
           <div class="form-row">
             <div class="form-group">
@@ -138,16 +137,52 @@
             </div>
           </div>
 
-          <div class="form-group">
-            <label for="street-address">Street address</label>
-            <input 
-              type="text" 
-              id="street-address" 
-              name="street-address" 
-              placeholder="123 Main Street" 
-              required 
-              autocomplete="street-address"
-            >
+          <!-- Unit Number & Complex Name (Optional in Address.java) -->
+          <div class="form-row">
+            <div class="form-group">
+              <label for="unit-number">Unit number <small class="muted">(Optional)</small></label>
+              <input 
+                type="text" 
+                id="unit-number" 
+                name="unit-number" 
+                placeholder="Unit 12 / Flat B"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="complex-name">Complex / Building <small class="muted">(Optional)</small></label>
+              <input 
+                type="text" 
+                id="complex-name" 
+                name="complex-name" 
+                placeholder="Oakridge Manor"
+              >
+            </div>
+          </div>
+
+          <!-- Street Number & Street Name (@NonNull in Address.java) -->
+          <div class="form-row">
+            <div class="form-group" style="flex: 1;">
+              <label for="street-number">Street no.</label>
+              <input 
+                type="text" 
+                id="street-number" 
+                name="street-number" 
+                placeholder="123" 
+                required
+              >
+            </div>
+
+            <div class="form-group" style="flex: 2;">
+              <label for="street-name">Street name</label>
+              <input 
+                type="text" 
+                id="street-name" 
+                name="street-name" 
+                placeholder="Main Street" 
+                required
+              >
+            </div>
           </div>
 
           <div class="form-row">
@@ -176,18 +211,6 @@
           </div>
 
           <div class="form-row">
-            <div class="form-group">
-              <label for="postal-code">Postal code</label>
-              <input 
-                type="text" 
-                id="postal-code" 
-                name="postal-code" 
-                placeholder="2194" 
-                required 
-                autocomplete="postal-code"
-              >
-            </div>
-
             <div class="form-group">
               <label for="province">Province</label>
               <input 

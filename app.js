@@ -1,89 +1,105 @@
-// app.js
-import {
-  auth,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  updateProfile
-} from "./firebase.js";
-
 document.addEventListener("DOMContentLoaded", () => {
-
-  // ——— Registration ———
   const registerForm = document.getElementById("register-form");
-  if (registerForm) {
-    registerForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
+  const roleInputs = document.querySelectorAll('input[name="role"]');
+  const recipientFields = document.getElementById("recipient-fields");
 
-      const fullName = document.getElementById("full-name").value.trim();
-      const email = document.getElementById("email").value.trim();
-      const password = document.getElementById("password").value;
-      const confirmPassword = document.getElementById("confirm-password").value;
-      const role = document.querySelector('input[name="role"]:checked')?.value || "recipient";
+  // Read the API base URL from window.VOUCHR_CONFIG (fallback to port 8081)
+  const API_BASE_URL = window.VOUCHR_CONFIG?.apiBaseUrl || "http://localhost:8081";
 
-      if (password !== confirmPassword) {
-        alert("Passwords do not match.");
-        return;
+  // Toggle recipient-specific input requirements
+  const toggleRecipientFields = (role) => {
+    const isRecipient = role === "recipient";
+    recipientFields.style.display = isRecipient ? "block" : "none";
+
+    recipientFields.querySelectorAll("input").forEach((field) => {
+      // Keep optional address fields non-required
+      if (field.id === "unit-number" || field.id === "complex-name") {
+        field.required = false;
+      } else {
+        field.required = isRecipient;
       }
 
-      if (password.length < 6) {
-        alert("Password must be at least 6 characters.");
-        return;
-      }
-
-      try {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-
-        // Save display name
-        await updateProfile(userCredential.user, {
-          displayName: fullName
-        });
-
-        // Temporarily store role in localStorage.
-        // Later we will move this to your Spring API / database.
-        localStorage.setItem("vouchr_role", role);
-        localStorage.setItem("vouchr_name", fullName);
-
-        // Redirect
-        window.location.href = role === "staff" ? "employee.html" : "recipient.html";
-      } catch (error) {
-        console.error(error);
-        alert(error.message);
+      if (!isRecipient) {
+        field.value = "";
       }
     });
-  }
+  };
 
-  // ——— Login ———
-  const loginForm = document.getElementById("login-form");
-  if (loginForm) {
-    loginForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
+  const initialRole = document.querySelector('input[name="role"]:checked')?.value || "recipient";
+  toggleRecipientFields(initialRole);
 
-      const email = document.getElementById("email").value.trim();
-      const password = document.getElementById("password").value;
-
-      try {
-        await signInWithEmailAndPassword(auth, email, password);
-
-        const role = localStorage.getItem("vouchr_role") || "recipient";
-        window.location.href = role === "staff" ? "employee.html" : "recipient.html";
-      } catch (error) {
-        console.error(error);
-        alert(error.message);
-      }
+  roleInputs.forEach((input) => {
+    input.addEventListener("change", (e) => {
+      toggleRecipientFields(e.target.value);
     });
-  }
+  });
 
-  // ——— Logout ———
-  document.querySelectorAll('a[href="login.html"]').forEach(link => {
-    if (link.textContent.toLowerCase().includes("log out")) {
-      link.addEventListener("click", async (e) => {
-        e.preventDefault();
-        await signOut(auth);
-        localStorage.removeItem("vouchr_role");
-        localStorage.removeItem("vouchr_name");
-        window.location.href = "login.html";
+  // Handle Form Submission
+  registerForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const password = document.getElementById("password").value;
+    const confirmPassword = document.getElementById("confirm-password").value;
+
+    if (password !== confirmPassword) {
+      alert("Passwords do not match.");
+      return;
+    }
+
+    const selectedRole = document.querySelector('input[name="role"]:checked').value;
+
+    if (selectedRole === "staff") {
+      alert("Staff registration is managed directly by organization administrators. Redirecting to staff portal...");
+      window.location.href = "login.html";
+      return;
+    }
+
+    // Construct Payload directly from new HTML inputs
+    const payload = {
+      firstName: document.getElementById("first-name").value,
+      lastName: document.getElementById("last-name").value,
+      email: document.getElementById("email").value,
+      password: password,
+      saId: document.getElementById("sa-id").value,
+      phoneNumber: document.getElementById("phone-number").value,
+      address: {
+        unitNumber: document.getElementById("unit-number").value || null,
+        complexName: document.getElementById("complex-name").value || null,
+        streetNumber: document.getElementById("street-number").value,
+        streetName: document.getElementById("street-name").value,
+        suburb: document.getElementById("suburb").value,
+        city: document.getElementById("city").value,
+        province: document.getElementById("province").value
+      }
+    };
+
+    const submitBtn = registerForm.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Creating account...";
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/users/recipient`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
       });
+
+      if (response.status === 201 || response.ok) {
+        const data = await response.json();
+        console.log("Recipient created successfully:", data);
+        window.location.href = "login.html";
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        alert(`Registration failed: ${errorData.message || response.statusText}`);
+      }
+    } catch (error) {
+      console.error("Network error:", error);
+      alert("Unable to connect to server. Please try again later.");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Create account";
     }
   });
 });

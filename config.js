@@ -14,5 +14,5 @@ window.VOUCHR_CONFIG = {
   },
 
   // Spring API base URL (will also be injected later)
-  apiBaseUrl: "http://localhost:8080"
+  apiBaseUrl: "http://localhost:8081"
 };
