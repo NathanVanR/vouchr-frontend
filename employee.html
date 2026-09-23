@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Organization Vouchers — Vouchr</title>
+  <title>Staff Portal — Vouchr</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,114 +14,72 @@
     <div class="container header-inner">
       <a href="index.html" class="logo">Vouchr</a>
       <nav class="nav-user">
-        <span class="user-label">Hope Community Trust</span>
-        <a href="login.html" class="text-link">Log out</a>
+        <span class="user-label" id="org-display-name">Organization Admin</span>
+        <a href="manage-staff.html" class="text-link" id="nav-manage-staff">Manage Team</a>
+        <button id="logout-btn" class="text-link" style="background:none;border:none;cursor:pointer;">Log out</button>
       </nav>
     </div>
   </header>
 
   <main class="dashboard">
     <div class="container">
-      <div class="page-header">
+      <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
         <div>
-          <p class="eyebrow">Staff dashboard</p>
-          <h1>Organization vouchers</h1>
+          <p class="eyebrow" id="org-eyebrow">Hope Community Foundation</p>
+          <h1>Voucher Issuance & Overview</h1>
         </div>
-        <button class="btn btn-primary">Issue new voucher</button>
+        <button id="open-issue-modal-btn" class="btn btn-primary">+ Issue New Voucher</button>
       </div>
 
+      <!-- Stats Summary Row -->
       <div class="stats-row">
         <div class="stat-card">
-          <span class="stat-value">47</span>
-          <span class="stat-label">Active vouchers</span>
+          <span class="stat-value" id="stat-issued-count">0</span>
+          <span class="stat-label">Active Vouchers</span>
         </div>
         <div class="stat-card">
-          <span class="stat-value">128</span>
-          <span class="stat-label">Issued this month</span>
+          <span class="stat-value" id="stat-total-issued-value">R 0</span>
+          <span class="stat-label">Total Outstanding Value</span>
         </div>
         <div class="stat-card">
-          <span class="stat-value">R 42,800</span>
-          <span class="stat-label">Value in circulation</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-value">81%</span>
-          <span class="stat-label">Redeemed</span>
+          <span class="stat-value" id="stat-recipient-count">0</span>
+          <span class="stat-label">Registered Recipients</span>
         </div>
       </div>
 
-      <section class="table-section">
-        <div class="table-header">
-          <h2>Recent vouchers</h2>
-          <div class="filters">
-            <button class="filter-btn active">All</button>
-            <button class="filter-btn">Active</button>
-            <button class="filter-btn">Redeemed</button>
-          </div>
-        </div>
+      <!-- Quick Issue Form / Section -->
+      <section class="auth-card" style="max-width: 100%; margin-top: 2rem;">
+        <h2>Issue Voucher to Recipient</h2>
+        <form id="issue-voucher-form" class="auth-form" style="margin-top: 1rem;">
+          <div class="form-row">
+            <div class="form-group" style="flex: 2;">
+              <label for="recipient-select">Select Recipient</label>
+              <select id="recipient-select" name="recipient-select" required>
+                <option value="" disabled selected>Search by name or SA ID...</option>
+                <!-- Populated dynamically via app.js -->
+              </select>
+            </div>
 
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Recipient</th>
-                <th>Category</th>
-                <th>Value</th>
-                <th>Status</th>
-                <th>Issued</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><code>VH-48291</code></td>
-                <td>Thabo M.</td>
-                <td>Food & essentials</td>
-                <td>R 500</td>
-                <td><span class="badge badge-active">Active</span></td>
-                <td>2 Sep 2026</td>
-              </tr>
-              <tr>
-                <td><code>VH-77103</code></td>
-                <td>Lerato K.</td>
-                <td>Clothing</td>
-                <td>R 350</td>
-                <td><span class="badge badge-active">Active</span></td>
-                <td>1 Sep 2026</td>
-              </tr>
-              <tr>
-                <td><code>VH-22914</code></td>
-                <td>Sipho N.</td>
-                <td>School supplies</td>
-                <td>R 400</td>
-                <td><span class="badge badge-active">Active</span></td>
-                <td>28 Aug 2026</td>
-              </tr>
-              <tr>
-                <td><code>VH-11082</code></td>
-                <td>Nomsa D.</td>
-                <td>Food & essentials</td>
-                <td>R 600</td>
-                <td><span class="badge badge-redeemed">Redeemed</span></td>
-                <td>25 Aug 2026</td>
-              </tr>
-              <tr>
-                <td><code>VH-99301</code></td>
-                <td>Johan P.</td>
-                <td>Hygiene kit</td>
-                <td>R 250</td>
-                <td><span class="badge badge-redeemed">Redeemed</span></td>
-                <td>22 Aug 2026</td>
-              </tr>
-              <tr>
-                <td><code>VH-55420</code></td>
-                <td>Aisha B.</td>
-                <td>Food & essentials</td>
-                <td>R 450</td>
-                <td><span class="badge badge-expired">Expired</span></td>
-                <td>10 Aug 2026</td>
-              </tr>
-            </tbody>
-          </table>
+            <div class="form-group" style="flex: 1;">
+              <label for="voucher-amount">Amount (ZAR)</label>
+              <input type="number" id="voucher-amount" name="voucher-amount" placeholder="e.g. 250" min="10" required>
+            </div>
+
+            <div class="form-group" style="flex: 1;">
+              <label for="expiry-days">Valid For (Days)</label>
+              <input type="number" id="expiry-days" name="expiry-days" value="30" min="1" required>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary">Generate and Issue Voucher</button>
+        </form>
+      </section>
+
+      <!-- Issued Vouchers Table -->
+      <section class="mt-lg">
+        <h2>Recently Issued Vouchers</h2>
+        <div id="issued-vouchers-container" class="mt-md">
+          <!-- Dynamic rendering via JS -->
         </div>
       </section>
     </div>

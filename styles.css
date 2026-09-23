@@ -684,3 +684,53 @@ p {
     gap: 0.25rem;
   }
 }
+
+/* Custom Select Wrapper for custom arrow icon */
+.select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.select-wrapper::after {
+  content: "";
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0.6rem;
+  height: 0.6rem;
+  border-right: 2px solid #6b7280;
+  border-bottom: 2px solid #6b7280;
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none; /* Allows click through to the select element */
+}
+
+/* Base Select Input Styling */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 100%;
+  padding: 0.75rem 2.5rem 0.75rem 1rem; /* Extra right padding for chevron */
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: #1f2937;
+  background-color: #f9fafb; /* Matches input fill */
+  border: 1px solid #e5e7eb;  /* Matches input border radius/color */
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+select:focus {
+  outline: none;
+  border-color: #2563eb;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Muted color for the placeholder option */
+select:invalid,
+select option[value=""][disabled] {
+  color: #9ca3af;
+}
