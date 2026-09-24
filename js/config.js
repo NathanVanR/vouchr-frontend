@@ -12,7 +12,8 @@ const VOUCHR_CONFIG = {
     appId: "1:39348059822:web:85b8ae22b423fb7163f73f",
     measurementId: "G-WSF72F8574"
   },
-  apiBaseUrl: "http://localhost:8081"
+  //apiBaseUrl: "http://localhost:8081"
+  apiBaseUrl: "https://vouchr-backend-39348059822.africa-south1.run.app"
 };
 
 // Keep it on the window object if your external build tools need it
