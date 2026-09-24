@@ -1,0 +1,123 @@
+/* ============================================
+   Auth — Login, Register, Register Organization
+   ============================================ */
+
+.auth-page {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center; 
+  justify-content: center;
+  padding: 3rem 1.25rem;
+  box-sizing: border-box;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto; 
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 2.5rem 2rem;
+}
+
+.auth-card h1 {
+  font-size: 1.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.auth-card > .muted {
+  margin-bottom: 2rem;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Force all form fields to stack vertically */
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.form-row .form-group {
+  width: 100%;
+}
+
+/* Role selector */
+.role-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.25rem;
+}
+
+.role-option {
+  cursor: pointer;
+  display: block;
+}
+
+.role-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.role-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--canvas);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.role-card strong {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.role-card small {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.role-option input:checked + .role-card {
+  border-color: var(--text);
+  background: var(--surface-secondary);
+}
+
+.role-option:hover .role-card {
+  border-color: var(--text-secondary);
+}
+
+.auth-footer {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+/* ========== Responsive ========== */
+@media (max-width: 600px) {
+  .auth-page {
+    padding: 1.5rem 1rem;
+    align-items: flex-start;
+  }
+
+  .auth-card {
+    padding: 1.75rem 1.25rem;
+    border-radius: var(--radius);
+  }
+}
+
+#recipient-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}

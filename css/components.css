@@ -1,0 +1,288 @@
+/* ============================================
+   Components — Buttons, forms, cards, badges, tables
+   ============================================ */
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: var(--black);
+  color: var(--white);
+  border-color: var(--black);
+}
+
+.btn-primary:hover {
+  background: #2a2a28;
+  border-color: #2a2a28;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.btn-ghost:hover {
+  background: var(--surface-secondary);
+}
+
+.btn-sm {
+  font-size: 0.8125rem;
+  padding: 0.4rem 0.875rem;
+}
+
+.btn-full {
+  width: 100%;
+}
+
+/* Forms */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.form-group label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.form-group input,
+.form-group select {
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  padding: 0.7rem 0.875rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--canvas);
+  color: var(--text);
+  transition: border-color 0.15s ease;
+  width: 100%;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--text);
+}
+
+.form-group input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Select / Dropdown */
+.select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.select-wrapper::after {
+  content: "";
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-right: 2px solid var(--text-secondary);
+  border-bottom: 2px solid var(--text-secondary);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 100%;
+  padding: 0.7rem 2.5rem 0.7rem 0.875rem;
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  color: var(--text);
+  background-color: var(--canvas);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+select:focus {
+  outline: none;
+  border-color: var(--text);
+}
+
+select option {
+  background-color: var(--canvas);
+  color: var(--text);
+  padding: 0.6rem 0.875rem;
+}
+
+select option:checked {
+  background-color: var(--surface-secondary);
+  color: var(--text);
+}
+
+select:invalid,
+select option[value=""][disabled] {
+  color: var(--text-muted);
+}
+
+/* Cards */
+.card {
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.75rem;
+}
+
+.card p {
+  font-size: 0.9375rem;
+  line-height: 1.65;
+}
+
+/* Badges */
+.badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  letter-spacing: 0.01em;
+}
+
+.badge-active {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.badge-redeemed {
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+}
+
+.badge-expired {
+  background: #f5e8e4;
+  color: var(--warning);
+}
+
+/* Tables */
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.data-table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 0.875rem 1.25rem;
+  background: var(--surface-secondary);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 0.875rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  vertical-align: middle;
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table tbody tr:hover {
+  background: rgba(240, 238, 230, 0.5);
+}
+
+.data-table code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.8125rem;
+  color: var(--text);
+  background: var(--surface-secondary);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+
+/* Form rows */
+.form-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+/* Role selector - make sure these are present */
+.role-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.25rem;
+}
+
+.role-option {
+  cursor: pointer;
+  display: block;
+}
+
+.role-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.role-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--canvas);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.role-card strong {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.role-card small {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.role-option input:checked + .role-card {
+  border-color: var(--text);
+  background: var(--surface-secondary);
+}
+
+.role-option:hover .role-card {
+  border-color: var(--text-secondary);
+}

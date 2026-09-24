@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Organization Portal</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo">Vouchr</a>
+      <nav class="nav-user">
+        <!-- Active Organization Context Switcher -->
+        <div class="org-switcher-wrapper" id="org-switcher-container" style="display: none;">
+          <label for="active-org-select" class="sr-only">Active Organization</label>
+          <select id="active-org-select" class="select-sm">
+            <!-- Populated dynamically via JS -->
+          </select>
+        </div>
+
+        <span class="user-label" id="user-role-display">Staff</span>
+        <a href="manage-staff.html" class="text-link" id="nav-manage-staff" style="display: none;">Manage Team</a>
+        <button id="logout-btn" class="text-link" style="background:none;border:none;cursor:pointer;">Log out</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="dashboard">
+    <div class="container">
+      
+      <!-- Banner shown when staff is not attached to any organization -->
+      <section id="unattached-staff-banner" class="auth-card" style="display: none; text-align: center; margin-top: 2rem;">
+        <h2>You are not attached to an organization yet</h2>
+        <p class="muted">You can register a new organization to become an Admin, or ask an existing Organization Admin to add your email address.</p>
+        <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: center;">
+          <a href="register-org.html" class="btn btn-primary">Register New Organization</a>
+        </div>
+      </section>
+
+      <!-- Main Organization View: Enabled only when an active Org is selected -->
+      <div id="org-portal-content" style="display: none;">
+        <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <p class="eyebrow" id="org-eyebrow">Organization</p>
+            <h1>Voucher Issuance & Overview</h1>
+          </div>
+        </div>
+
+        <!-- Stats Summary Row -->
+        <div class="stats-row">
+          <div class="stat-card">
+            <span class="stat-value" id="stat-issued-count">0</span>
+            <span class="stat-label">Active Vouchers</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value" id="stat-total-issued-value">R 0</span>
+            <span class="stat-label">Total Outstanding Value</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value" id="stat-recipient-count">0</span>
+            <span class="stat-label">Registered Recipients</span>
+          </div>
+        </div>
+
+        <!-- Issue Voucher Section -->
+        <section class="auth-card" style="max-width: 100%; margin-top: 2rem;">
+          <h2>Issue Voucher to Recipient</h2>
+          <form id="issue-voucher-form" class="auth-form" style="margin-top: 1rem;">
+            <div class="form-row">
+              <!-- Searchable Recipient Input (Typeable) -->
+              <div class="form-group" style="flex: 2;">
+                <label for="recipient-search">Recipient (Phone Number or Name)</label>
+                <input 
+                  type="text" 
+                  id="recipient-search" 
+                  name="recipient-search" 
+                  list="recipients-datalist" 
+                  placeholder="e.g. 0821234567 or Jane Doe" 
+                  required 
+                  autocomplete="off"
+                >
+                <datalist id="recipients-datalist">
+                  <!-- Populated dynamically via JS -->
+                </datalist>
+              </div>
+
+              <!-- Voucher Type / Category Dropdown -->
+              <div class="form-group" style="flex: 1.5;">
+                <label for="voucher-type">Voucher Category / Item</label>
+                <div class="select-wrapper">
+                  <select id="voucher-type" name="voucher-type" required>
+                    <option value="" disabled selected>Select option</option>
+                    <option value="food_parcel">Food Parcel Basket</option>
+                    <option value="school_supplies">School Uniform & Supplies</option>
+                    <option value="electricity">Prepaid Electricity</option>
+                    <option value="cash">Custom Cash Amount (ZAR)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Dynamic ZAR Amount Field (Visible when 'cash' or custom amount is selected) -->
+              <div class="form-group" id="custom-amount-group" style="flex: 1; display: none;">
+                <label for="voucher-amount">Amount (ZAR)</label>
+                <input type="number" id="voucher-amount" name="voucher-amount" placeholder="e.g. 250" min="10">
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary mt-sm">Generate and Issue Voucher</button>
+          </form>
+        </section>
+
+        <!-- Issued Vouchers Table -->
+        <section class="mt-lg">
+          <h2>Recently Issued Vouchers</h2>
+          <div id="issued-vouchers-container" class="mt-md">
+            <!-- Dynamic rendering via JS -->
+          </div>
+        </section>
+      </div>
+
+    </div>
+  </main>
+
+  <script type="module" src="js/config.js"></script>
+  <script type="module" src="js/staff-dashboard.js"></script>
+</body>
+</html>

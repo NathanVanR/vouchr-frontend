@@ -1,0 +1,207 @@
+/* ============================================
+   Dashboard — Staff & Recipient dashboards
+   ============================================ */
+
+.dashboard {
+  padding: 2.5rem 0 4rem;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.page-header h1 {
+  font-size: 1.875rem;
+}
+
+/* Stats */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+}
+
+.stat-card {
+  background: var(--surface-secondary);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.stat-label {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+/* Voucher cards */
+.voucher-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.voucher-card {
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.voucher-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.voucher-org {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.voucher-amount {
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--text);
+  margin: 0.25rem 0;
+}
+
+.voucher-meta {
+  display: flex;
+  gap: 1.25rem;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Table section */
+.table-section {
+  margin-top: 0.5rem;
+}
+
+.table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.table-header h2 {
+  margin-bottom: 0;
+  font-size: 1.25rem;
+}
+
+.filters {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.filter-btn {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-btn:hover {
+  background: var(--surface-secondary);
+}
+
+.filter-btn.active {
+  background: var(--black);
+  color: var(--white);
+}
+
+/* Hero & marketing sections (used on landing page) */
+.hero {
+  padding: 6rem 0 5rem;
+  text-align: center;
+}
+
+.hero h1 {
+  margin-bottom: 1.25rem;
+}
+
+.hero-lead {
+  font-size: 1.1875rem;
+  max-width: 540px;
+  margin: 0 auto 2.25rem;
+  line-height: 1.7;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.section {
+  padding: 4.5rem 0;
+}
+
+.section-alt {
+  background: var(--surface-secondary);
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.step {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 800px) {
+  .grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .hero {
+    padding: 4rem 0 3.5rem;
+  }
+
+  .page-header {
+    flex-direction: column;
+  }
+
+  .voucher-meta {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+}
