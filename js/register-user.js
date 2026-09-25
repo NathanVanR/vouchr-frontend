@@ -1,7 +1,7 @@
 import { registerStaff, registerRecipient } from './api.js';
 import { saveUserSession } from './utils.js';
+import { supabase } from './supabase-client.js';
 
-// Top-level DOM selection (safe in type="module")
 const registerForm = document.getElementById("register-form");
 const roleInputs = document.querySelectorAll('input[name="role"]');
 const recipientFields = document.getElementById("recipient-fields");
@@ -9,8 +9,6 @@ const recipientFields = document.getElementById("recipient-fields");
 if (registerForm) {
   const toggleRoleFields = (role) => {
     const isRecipient = role === "recipient";
-
-    // Toggle Recipient Section
     if (recipientFields) {
       recipientFields.style.display = isRecipient ? "block" : "none";
       recipientFields.querySelectorAll("input, select, textarea").forEach((field) => {
@@ -19,21 +17,18 @@ if (registerForm) {
         } else {
           field.required = isRecipient;
         }
-        if (!isRecipient) field.value = ""; // Clear values when hidden
+        if (!isRecipient) field.value = "";
       });
     }
   };
 
-  // Initialize view based on default checked radio
   const initialRole = document.querySelector('input[name="role"]:checked')?.value || "recipient";
   toggleRoleFields(initialRole);
 
-  // Attach change listeners to radio buttons
   roleInputs.forEach((input) => {
     input.addEventListener("change", (e) => toggleRoleFields(e.target.value));
   });
 
-  // Handle form submission
   registerForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -45,6 +40,7 @@ if (registerForm) {
       return;
     }
 
+    const email = document.getElementById("email").value.trim();
     const selectedRole = document.querySelector('input[name="role"]:checked')?.value;
     const submitBtn = registerForm.querySelector('button[type="submit"]');
 
@@ -52,22 +48,64 @@ if (registerForm) {
     submitBtn.textContent = "Creating account...";
 
     try {
+      let accessToken;
+      let authUserId;
+
+      // ── 1. Auth: sign up, or sign in if the user already exists ──
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password
+      });
+
+      if (signUpError) {
+        const msg = (signUpError.message || "").toLowerCase();
+        const alreadyRegistered =
+          msg.includes("already") ||
+          msg.includes("registered") ||
+          signUpError.status === 422;
+
+        if (alreadyRegistered) {
+          // Auth user exists from a previous partial registration → sign in
+          const { data: signInData, error: signInError } =
+            await supabase.auth.signInWithPassword({ email, password });
+
+          if (signInError) throw signInError;
+          if (!signInData.session) {
+            throw new Error("Sign-in succeeded but no session was returned.");
+          }
+
+          accessToken = signInData.session.access_token;
+          authUserId = signInData.user.id;
+        } else {
+          throw signUpError;
+        }
+      } else {
+        if (!signUpData.session) {
+          throw new Error(
+            "No session returned. Check that GOTRUE_MAILER_AUTOCONFIRM=true is set."
+          );
+        }
+        accessToken = signUpData.session.access_token;
+        authUserId = signUpData.user.id;
+      }
+
+      // ── 2. Create the domain profile (Spring) ────────────────────
       let data;
 
       if (selectedRole === "staff") {
         data = await registerStaff({
+          authUserId,
           firstName: document.getElementById("first-name").value.trim(),
           lastName: document.getElementById("last-name").value.trim(),
-          email: document.getElementById("email").value.trim(),
-          phoneNumber: document.getElementById("phone-number").value.trim(),
-          password
-        });
+          email,
+          phoneNumber: document.getElementById("phone-number").value.trim()
+        }, accessToken);
       } else {
         data = await registerRecipient({
+          authUserId,
           firstName: document.getElementById("first-name").value.trim(),
           lastName: document.getElementById("last-name").value.trim(),
-          email: document.getElementById("email").value.trim(),
-          password,
+          email,
           saId: document.getElementById("sa-id").value.trim(),
           phoneNumber: document.getElementById("phone-number").value.trim(),
           address: {
@@ -79,13 +117,14 @@ if (registerForm) {
             city: document.getElementById("city").value.trim(),
             province: document.getElementById("province").value.trim()
           }
-        });
+        }, accessToken);
       }
 
-      const userId = data.id || data.userId || data.staffId || data.recipientId;
+      // ── 3. Persist session and redirect ──────────────────────────
       saveUserSession({
-        userId,
-        token: data.token,
+        userId: data.recipientId || data.staffId,
+        authUserId,
+        token: accessToken,
         role: selectedRole
       });
 

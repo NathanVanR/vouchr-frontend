@@ -1,13 +1,29 @@
 import { getRecipientVouchers } from './api.js';
-import { getStoredUser, formatCurrency, formatDate } from './utils.js';
+import {
+  getStoredUser,
+  clearUserSession,
+  formatCurrency,
+  formatDate
+} from './utils.js';
+import { supabase } from './supabase-client.js';
+
+async function logout() {
+  try {
+    await supabase.auth.signOut();
+  } catch (e) {
+    console.warn('Supabase signOut failed', e);
+  }
+  clearUserSession();
+  window.location.href = 'index.html';
+}
 
 async function loadRecipientDashboard() {
-  const voucherListContainer = document.getElementById("voucher-list-container");
+  const voucherListContainer = document.getElementById('voucher-list-container');
   if (!voucherListContainer) return;
 
   const { userId } = getStoredUser();
-  const statCount = document.getElementById("stat-active-count");
-  const statTotal = document.getElementById("stat-total-value");
+  const statCount = document.getElementById('stat-active-count');
+  const statTotal = document.getElementById('stat-total-value');
 
   if (!userId) {
     voucherListContainer.innerHTML = `
@@ -22,12 +38,15 @@ async function loadRecipientDashboard() {
   try {
     const vouchers = await getRecipientVouchers(userId);
     const activeVouchers = Array.isArray(vouchers)
-      ? vouchers.filter((v) => v.status === "ACTIVE")
+      ? vouchers.filter((v) => v.status === 'ACTIVE')
       : [];
 
     if (statCount) statCount.textContent = activeVouchers.length;
     if (statTotal) {
-      const totalValue = activeVouchers.reduce((acc, v) => acc + (v.remainingAmount || v.amount || 0), 0);
+      const totalValue = activeVouchers.reduce(
+        (acc, v) => acc + (v.remainingAmount || v.amount || 0),
+        0
+      );
       statTotal.textContent = formatCurrency(totalValue);
     }
 
@@ -41,13 +60,15 @@ async function loadRecipientDashboard() {
       return;
     }
 
-    voucherListContainer.innerHTML = activeVouchers.map((v) => `
+    voucherListContainer.innerHTML = activeVouchers
+      .map(
+        (v) => `
       <article class="voucher-card">
         <div class="voucher-top">
-          <span class="voucher-org">${v.organizationName || "Partner NPO"}</span>
+          <span class="voucher-org">${v.organizationName || 'Partner NPO'}</span>
           <span class="badge badge-active">${v.status}</span>
         </div>
-        <h3>${v.categoryName || "General Essentials"}</h3>
+        <h3>${v.categoryName || 'General Essentials'}</h3>
         <p class="voucher-amount">${formatCurrency(v.remainingAmount || v.amount)} remaining</p>
         <div class="voucher-meta">
           <span>Expires ${formatDate(v.expiryDate)}</span>
@@ -55,10 +76,11 @@ async function loadRecipientDashboard() {
         </div>
         <button class="btn btn-primary btn-sm">Show QR / Redeem</button>
       </article>
-    `).join("");
-
+    `
+      )
+      .join('');
   } catch (error) {
-    console.error("Error loading dashboard:", error);
+    console.error('Error loading dashboard:', error);
     voucherListContainer.innerHTML = `
       <div class="empty-state" style="text-align: center; padding: 2rem; width: 100%;">
         <p class="muted">Could not load active vouchers. Please try again later.</p>
@@ -67,4 +89,10 @@ async function loadRecipientDashboard() {
   }
 }
 
-document.addEventListener("DOMContentLoaded", loadRecipientDashboard);
+// Wire logout + load data
+document.getElementById('logout-btn')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  logout();
+});
+
+document.addEventListener('DOMContentLoaded', loadRecipientDashboard);

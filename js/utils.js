@@ -14,6 +14,7 @@ export function formatDate(dateString) {
 export function getStoredUser() {
   return {
     userId: localStorage.getItem("userId"),
+    authUserId: localStorage.getItem("authUserId"),
     authToken: localStorage.getItem("authToken"),
     userRole: localStorage.getItem("userRole"),
     activeOrgId: localStorage.getItem("activeOrgId"),
@@ -21,8 +22,9 @@ export function getStoredUser() {
   };
 }
 
-export function saveUserSession({ userId, token, role, organizations }) {
+export function saveUserSession({ userId, authUserId, token, role, organizations }) {
   if (userId) localStorage.setItem("userId", userId);
+  if (authUserId) localStorage.setItem("authUserId", authUserId);
   if (token) localStorage.setItem("authToken", token);
   if (role) localStorage.setItem("userRole", role);
   if (organizations) localStorage.setItem("userOrganizations", JSON.stringify(organizations));
@@ -30,6 +32,7 @@ export function saveUserSession({ userId, token, role, organizations }) {
 
 export function clearUserSession() {
   localStorage.removeItem("userId");
+  localStorage.removeItem("authUserId");
   localStorage.removeItem("authToken");
   localStorage.removeItem("userRole");
   localStorage.removeItem("activeOrgId");
