@@ -16,10 +16,12 @@
       <nav class="nav-user">
         <!-- Active Organization Context Switcher -->
         <div class="org-switcher-wrapper" id="org-switcher-container" style="display: none;">
-          <label for="active-org-select" class="sr-only">Active Organization</label>
-          <select id="active-org-select" class="select-sm">
-            <!-- Populated dynamically via JS -->
-          </select>
+          <label for="active-org-select" class="org-switcher-label">Active Organization</label>
+          <div class="select-wrapper org-select-wrapper">
+            <select id="active-org-select" class="org-select">
+              <!-- Populated dynamically via JS -->
+            </select>
+          </div>
         </div>
 
         <span class="user-label" id="user-role-display">Staff</span>

@@ -1,3 +1,4 @@
+//js/register-user.js
 import { registerStaff, registerRecipient } from './api.js';
 import { saveUserSession } from './utils.js';
 import { supabase } from './supabase-client.js';

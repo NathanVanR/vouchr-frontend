@@ -1,3 +1,4 @@
+//js/utils.js
 export function formatCurrency(amount) {
   return `R ${(amount || 0).toLocaleString("en-ZA")}`;
 }

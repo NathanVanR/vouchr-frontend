@@ -185,6 +185,82 @@
   margin-bottom: 1rem;
 }
 
+/* ===== Organization Switcher ===== */
+.org-switcher-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-right: 1.25rem;
+}
+
+.org-switcher-label {
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #6b7280; /* muted gray */
+  line-height: 1;
+}
+
+.org-select-wrapper {
+  position: relative;
+  min-width: 180px;
+}
+
+.org-select-wrapper::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid #6b7280;
+  pointer-events: none;
+}
+
+.org-select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  padding: 0.5rem 2rem 0.5rem 0.85rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #111827;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  line-height: 1.4;
+}
+
+.org-select:hover {
+  border-color: #d1d5db;
+}
+
+.org-select:focus {
+  outline: none;
+  border-color: #111827;
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.08);
+}
+
+/* Optional: make it feel more “pill-like” on larger screens
+@media (min-width: 640px) {
+  .org-select {
+    border-radius: 9999px;
+    padding-left: 1rem;
+    padding-right: 2.25rem;
+  } */
+  
+  .org-select-wrapper::after {
+    right: 14px;
+  }
+}
+
 @media (max-width: 800px) {
   .grid-3 {
     grid-template-columns: 1fr;

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Register Organization — Vouchr</title>
+  <title>Register Organization</title>
   <link rel="stylesheet" href="css/main.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,7 +27,7 @@
       </p>
 
       <form id="register-org-form" class="auth-form">
-        <!-- Organization Information only -->
+        <!-- Required Organization Information -->
         <div class="form-section">
           <div class="form-group">
             <label for="org-name">Organization name</label>
@@ -51,9 +51,98 @@
               </select>
             </div>
           </div>
+
+          <div class="form-group">
+            <label for="org-capability">Organization capability</label>
+            <div class="select-wrapper">
+              <select id="org-capability" name="org-capability" required>
+                <option value="" disabled selected>Select capability</option>
+                <option value="ISSUER">I issue vouchers</option>
+                <option value="REDEEMER">I redeem vouchers</option>
+                <option value="BOTH">I can do both</option>
+              </select>
+            </div>
+          </div>
         </div>
 
-        <button type="submit" class="btn btn-primary btn-full">
+        <hr style="margin: 0.75rem 0; border: none; border-top: 1px solid #eaeaea;">
+
+        <!-- Optional Contact Information -->
+        <div class="form-section">
+          <h3 style="margin-bottom: 0.25rem;">Contact Details (Optional)</h3>
+          <p class="muted small" style="margin-bottom: 0.75rem;">
+            If left blank, your personal staff email and phone number will be used automatically.
+          </p>
+          
+          <div class="form-group">
+            <label for="org-email">Organization email</label>
+            <input 
+              type="email" 
+              id="org-email" 
+              name="org-email" 
+              placeholder="e.g. hello@hopecommunity.org"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="org-phone">Organization phone number</label>
+            <input 
+              type="tel" 
+              id="org-phone" 
+              name="org-phone" 
+              placeholder="e.g. 011 234 5678"
+            >
+          </div>
+        </div>
+
+        <hr style="margin: 0.75rem 0; border: none; border-top: 1px solid #eaeaea;">
+
+        <!-- Optional Address Information -->
+        <div class="form-section">
+          <h3 style="margin-bottom: 0.75rem;">Address</h3>
+          
+          <!-- Unit and Complex (Optional in Java Model) -->
+          <div class="form-row" style="display: flex; gap: 1rem;">
+            <div class="form-group" style="flex: 1;">
+              <label for="org-unit-number">Unit number (Optional)</label>
+              <input type="text" id="org-unit-number" name="org-unit-number" placeholder="12">
+            </div>
+            <div class="form-group" style="flex: 2;">
+              <label for="org-complex-name">Complex name (Optional)</label>
+              <input type="text" id="org-complex-name" name="org-complex-name" placeholder="The Palms">
+            </div>
+          </div>
+
+          <!-- Street Details -->
+          <div class="form-row" style="display: flex; gap: 1rem;">
+            <div class="form-group" style="flex: 1;">
+              <label for="org-street-number">Street number</label>
+              <input type="text" id="org-street-number" name="org-street-number" placeholder="123">
+            </div>
+            <div class="form-group" style="flex: 3;">
+              <label for="org-street-name">Street name</label>
+              <input type="text" id="org-street-name" name="org-street-name" placeholder="Mandela Way">
+            </div>
+          </div>
+
+          <!-- Suburb, City, Province -->
+          <div class="form-row" style="display: flex; gap: 1rem;">
+            <div class="form-group" style="flex: 1;">
+              <label for="org-suburb">Suburb</label>
+              <input type="text" id="org-suburb" name="org-suburb" placeholder="Randburg">
+            </div>
+            <div class="form-group" style="flex: 1;">
+              <label for="org-city">City</label>
+              <input type="text" id="org-city" name="org-city" placeholder="Johannesburg">
+            </div>
+            <div class="form-group" style="flex: 1;">
+              <label for="org-province">Province</label>
+              <input type="text" id="org-province" name="org-province" placeholder="Gauteng">
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full" style="margin-top: 1rem;">
           Create organization
         </button>
       </form>
@@ -64,6 +153,7 @@
     </div>
   </main>
 
+  <script src="js/config.js"></script>
   <script type="module" src="js/register-org.js"></script>
 </body>
 </html>

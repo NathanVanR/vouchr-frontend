@@ -1,3 +1,4 @@
+//js/api.js
 import { getStoredUser } from './utils.js';
 
 if (!window.VOUCHR_CONFIG) {
@@ -5,8 +6,6 @@ if (!window.VOUCHR_CONFIG) {
 }
 
 const API_BASE_URL = window.VOUCHR_CONFIG.apiBaseUrl;
-
-// ... rest of the file unchanged
 
 async function request(endpoint, options = {}) {
   // Prefer an explicitly passed token (used during registration),
@@ -60,7 +59,7 @@ export async function getRecipientVouchers(recipientId) {
 }
 
 export async function createOrganization(payload) {
-  return request("/api/organizations", {
+  return request("/api/organization", {
     method: "POST",
     body: JSON.stringify(payload)
   });
