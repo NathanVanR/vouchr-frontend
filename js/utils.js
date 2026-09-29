@@ -39,3 +39,28 @@ export function clearUserSession() {
   localStorage.removeItem("activeOrgId");
   localStorage.removeItem("userOrganizations");
 }
+
+export function performLogout() {
+  // localStorage.removeItem("user");
+  // localStorage.removeItem("activeOrgId");
+  // localStorage.removeItem("accessToken"); 
+  
+  // Alternatively, use localStorage.clear() if you want to wipe absolutely everything
+  localStorage.clear();
+
+  // Redirect back to the home or login page
+  window.location.href = "index.html"; // Adjust to your actual login/home page URL
+}
+
+// Automatically attach the logout event to any button with the ID "logout-btn"
+document.addEventListener("DOMContentLoaded", () => {
+  // Use querySelectorAll in case you ever use a class like .logout-btn for multiple buttons on one page
+  const logoutButtons = document.querySelectorAll("#logout-btn, .logout-btn");
+  
+  logoutButtons.forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      performLogout();
+    });
+  });
+});
