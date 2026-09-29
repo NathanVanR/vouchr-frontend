@@ -24,13 +24,36 @@ async function initEmployeePortal() {
   // Safely extract userOrganizations (defaults to empty object if missing)
   let userOrganizations = user.userOrganizations || {};
   
-  // OPTIONAL BUT RECOMMENDED: Fetch fresh user context from your API here
+  // Fetch fresh user context from your API
   try {
-    const freshData = await fetch(`${window.VOUCHR_CONFIG.apiBaseUrl}/users/me/organizations`, ...);
-    userOrganizations = await freshData.json();
-    // Update local storage so it stays in sync
-    user.userOrganizations = userOrganizations;
-    localStorage.setItem('user', JSON.stringify(user)); 
+    // Note: Adjust 'accessToken' to whatever key you use to store your JWT/Supabase token during login
+    const token = localStorage.getItem('accessToken'); 
+    
+    const response = await fetch(`${window.VOUCHR_CONFIG.apiBaseUrl}/api/users/me`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (response.ok) {
+      const freshData = await response.json();
+      
+      // Update local storage object with the fresh data
+      // (This safely merges the fresh data with the existing user object)
+      Object.assign(user, freshData);
+      
+      // Update our local userOrganizations variable
+      if (freshData.userOrganizations) {
+        userOrganizations = freshData.userOrganizations;
+      }
+      
+      // Save the updated user back to local storage
+      localStorage.setItem('user', JSON.stringify(user)); 
+    } else {
+      console.error("Failed to fetch fresh user data. Status:", response.status);
+    }
   } catch (err) {
     console.error("Failed to fetch fresh org data", err);
   }
