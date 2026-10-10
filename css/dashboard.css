@@ -248,6 +248,14 @@
   box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.08);
 }
 
+#nav-create-org {
+  opacity: 0.75;
+  font-size: 0.9em;
+}
+#nav-create-org:hover {
+  opacity: 1;
+}
+
 /* Optional: make it feel more “pill-like” on larger screens
 @media (min-width: 640px) {
   .org-select {

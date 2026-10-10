@@ -1,4 +1,3 @@
-//js/register-user.js
 import { registerStaff, registerRecipient } from './api.js';
 import { saveUserSession } from './utils.js';
 import { supabase } from './supabase-client.js';
@@ -6,19 +5,77 @@ import { supabase } from './supabase-client.js';
 const registerForm = document.getElementById("register-form");
 const roleInputs = document.querySelectorAll('input[name="role"]');
 const recipientFields = document.getElementById("recipient-fields");
+const staffFields = document.getElementById("staff-fields");
+
+// Dependent UI Logic
+const dependentsList = document.getElementById("dependents-list");
+const addDependentBtn = document.getElementById("add-dependent-btn");
+let dependentIndex = 0;
+
+if (addDependentBtn) {
+  addDependentBtn.addEventListener("click", () => {
+    const depId = `dep-${dependentIndex++}`;
+    const depHtml = `
+      <div class="dependent-group" id="${depId}" style="background: #f9f9f9; padding: 1rem; border-radius: 8px; border: 1px solid #eaeaea; margin-bottom: 1rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <strong style="font-size: 0.9rem;">Dependent</strong>
+          <button type="button" class="btn text-link text-danger remove-dep-btn" data-target="${depId}" style="padding: 0; border: none; background: none; font-size: 0.85rem;">Remove</button>
+        </div>
+        <div class="form-group">
+          <label>First name</label>
+          <input type="text" name="dep-first-name" required>
+        </div>
+        <div class="form-group">
+          <label>Last name</label>
+          <input type="text" name="dep-last-name" required>
+        </div>
+        <div class="form-group">
+          <label>SA ID number</label>
+          <input type="text" name="dep-sa-id" pattern="[0-9]{13}" placeholder="13-digit ID number" required>
+        </div>
+      </div>
+    `;
+    dependentsList.insertAdjacentHTML("beforeend", depHtml);
+  });
+}
+
+// Handle dynamic removal of dependent fields
+if (dependentsList) {
+  dependentsList.addEventListener("click", (e) => {
+    if (e.target.classList.contains("remove-dep-btn")) {
+      const targetId = e.target.getAttribute("data-target");
+      document.getElementById(targetId).remove();
+    }
+  });
+}
 
 if (registerForm) {
   const toggleRoleFields = (role) => {
     const isRecipient = role === "recipient";
+    const isStaff = role === "staff";
+    
     if (recipientFields) {
       recipientFields.style.display = isRecipient ? "block" : "none";
       recipientFields.querySelectorAll("input, select, textarea").forEach((field) => {
-        if (field.id === "unit-number" || field.id === "complex-name") {
-          field.required = false;
-        } else {
-          field.required = isRecipient;
+        // Only enforce required on standard recipient fields, ignore dependents for this toggle
+        if (!field.name.startsWith("dep-")) {
+          if (field.id === "unit-number" || field.id === "complex-name") {
+            field.required = false;
+          } else {
+            field.required = isRecipient;
+          }
+          if (!isRecipient) field.value = "";
         }
-        if (!isRecipient) field.value = "";
+      });
+      // Clear dependents if switching to staff
+      if (!isRecipient && dependentsList) dependentsList.innerHTML = "";
+    }
+
+    if (staffFields) {
+      staffFields.style.display = isStaff ? "block" : "none";
+      staffFields.querySelectorAll("input, select, textarea").forEach((field) => {
+        field.required = isStaff;
+        if (!isStaff) field.value = "";
       });
     }
   };
@@ -52,7 +109,6 @@ if (registerForm) {
       let accessToken;
       let authUserId;
 
-      // ── 1. Auth: sign up, or sign in if the user already exists ──
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password
@@ -66,7 +122,6 @@ if (registerForm) {
           signUpError.status === 422;
 
         if (alreadyRegistered) {
-          // Auth user exists from a previous partial registration → sign in
           const { data: signInData, error: signInError } =
             await supabase.auth.signInWithPassword({ email, password });
 
@@ -82,15 +137,12 @@ if (registerForm) {
         }
       } else {
         if (!signUpData.session) {
-          throw new Error(
-            "No session returned. Check that GOTRUE_MAILER_AUTOCONFIRM=true is set."
-          );
+          throw new Error("No session returned. Check that GOTRUE_MAILER_AUTOCONFIRM=true is set.");
         }
         accessToken = signUpData.session.access_token;
         authUserId = signUpData.user.id;
       }
 
-      // ── 2. Create the domain profile (Spring) ────────────────────
       let data;
 
       if (selectedRole === "staff") {
@@ -99,9 +151,19 @@ if (registerForm) {
           firstName: document.getElementById("first-name").value.trim(),
           lastName: document.getElementById("last-name").value.trim(),
           email,
-          phoneNumber: document.getElementById("phone-number").value.trim()
+          phoneNumber: document.getElementById("phone-number").value.trim(),
+          organizationId: document.getElementById("organization-id").value.trim()
         }, accessToken);
       } else {
+        
+        // Extract dynamically added dependents
+        const dependentNodes = document.querySelectorAll(".dependent-group");
+        const dependentsArray = Array.from(dependentNodes).map(dep => ({
+          firstName: dep.querySelector('input[name="dep-first-name"]').value.trim(),
+          lastName: dep.querySelector('input[name="dep-last-name"]').value.trim(),
+          saId: dep.querySelector('input[name="dep-sa-id"]').value.trim()
+        }));
+
         data = await registerRecipient({
           authUserId,
           firstName: document.getElementById("first-name").value.trim(),
@@ -117,11 +179,11 @@ if (registerForm) {
             suburb: document.getElementById("suburb").value.trim(),
             city: document.getElementById("city").value.trim(),
             province: document.getElementById("province").value.trim()
-          }
+          },
+          dependents: dependentsArray // Send to Spring Backend
         }, accessToken);
       }
 
-      // ── 3. Persist session and redirect ──────────────────────────
       saveUserSession({
         userId: data.recipientId || data.staffId,
         authUserId,
@@ -141,4 +203,19 @@ if (registerForm) {
       submitBtn.textContent = "Create account";
     }
   });
+  // Password Visibility Toggle Logic
+      const toggleButtons = document.querySelectorAll('.toggle-password');
+      toggleButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          const targetInput = document.getElementById(this.getAttribute('data-target'));
+          
+          if (targetInput.type === 'password') {
+            targetInput.type = 'text';
+            this.textContent = 'Hide';
+          } else {
+            targetInput.type = 'password';
+            this.textContent = 'Show';
+          }
+        });
+      });
 }

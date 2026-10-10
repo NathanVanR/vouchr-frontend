@@ -66,4 +66,19 @@ if (loginForm) {
       submitBtn.textContent = 'Sign in';
     }
   });
+  // Password Visibility Toggle Logic
+      const toggleButtons = document.querySelectorAll('.toggle-password');
+      toggleButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          const targetInput = document.getElementById(this.getAttribute('data-target'));
+          
+          if (targetInput.type === 'password') {
+            targetInput.type = 'text';
+            this.textContent = 'Hide';
+          } else {
+            targetInput.type = 'password';
+            this.textContent = 'Show';
+          }
+        });
+      });
 }
