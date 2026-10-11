@@ -5,7 +5,14 @@ import { supabase } from './supabase-client.js';
 const registerForm = document.getElementById("register-form");
 const roleInputs = document.querySelectorAll('input[name="role"]');
 const recipientFields = document.getElementById("recipient-fields");
-const staffFields = document.getElementById("staff-fields");
+
+// Initialize intl-tel-input
+const phoneInput = document.getElementById("phone-number");
+const iti = window.intlTelInput(phoneInput, {
+  initialCountry: "za",
+  preferredCountries: ["za", "bw", "na", "sz", "ls", "zw", "mz"],
+  utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@24.5.0/build/js/utils.js"
+});
 
 // Dependent UI Logic
 const dependentsList = document.getElementById("dependents-list");
@@ -39,7 +46,6 @@ if (addDependentBtn) {
   });
 }
 
-// Handle dynamic removal of dependent fields
 if (dependentsList) {
   dependentsList.addEventListener("click", (e) => {
     if (e.target.classList.contains("remove-dep-btn")) {
@@ -52,12 +58,10 @@ if (dependentsList) {
 if (registerForm) {
   const toggleRoleFields = (role) => {
     const isRecipient = role === "recipient";
-    const isStaff = role === "staff";
     
     if (recipientFields) {
       recipientFields.style.display = isRecipient ? "block" : "none";
       recipientFields.querySelectorAll("input, select, textarea").forEach((field) => {
-        // Only enforce required on standard recipient fields, ignore dependents for this toggle
         if (!field.name.startsWith("dep-")) {
           if (field.id === "unit-number" || field.id === "complex-name") {
             field.required = false;
@@ -67,16 +71,7 @@ if (registerForm) {
           if (!isRecipient) field.value = "";
         }
       });
-      // Clear dependents if switching to staff
       if (!isRecipient && dependentsList) dependentsList.innerHTML = "";
-    }
-
-    if (staffFields) {
-      staffFields.style.display = isStaff ? "block" : "none";
-      staffFields.querySelectorAll("input, select, textarea").forEach((field) => {
-        field.required = isStaff;
-        if (!isStaff) field.value = "";
-      });
     }
   };
 
@@ -97,6 +92,13 @@ if (registerForm) {
       alert("Passwords do not match.");
       return;
     }
+
+    // Get full international number
+    if (!iti.isValidNumber()) {
+      alert("Please enter a valid phone number.");
+      return;
+    }
+    const phoneNumber = iti.getNumber(); // e.g. +27821234567
 
     const email = document.getElementById("email").value.trim();
     const selectedRole = document.querySelector('input[name="role"]:checked')?.value;
@@ -151,12 +153,9 @@ if (registerForm) {
           firstName: document.getElementById("first-name").value.trim(),
           lastName: document.getElementById("last-name").value.trim(),
           email,
-          phoneNumber: document.getElementById("phone-number").value.trim(),
-          //organizationId: document.getElementById("organization-id").value.trim()
+          phoneNumber
         }, accessToken);
       } else {
-        
-        // Extract dynamically added dependents
         const dependentNodes = document.querySelectorAll(".dependent-group");
         const dependentsArray = Array.from(dependentNodes).map(dep => ({
           firstName: dep.querySelector('input[name="dep-first-name"]').value.trim(),
@@ -170,7 +169,7 @@ if (registerForm) {
           lastName: document.getElementById("last-name").value.trim(),
           email,
           saId: document.getElementById("sa-id").value.trim(),
-          phoneNumber: document.getElementById("phone-number").value.trim(),
+          phoneNumber,
           address: {
             unitNumber: document.getElementById("unit-number")?.value.trim() || null,
             complexName: document.getElementById("complex-name")?.value.trim() || null,
@@ -180,7 +179,7 @@ if (registerForm) {
             city: document.getElementById("city").value.trim(),
             province: document.getElementById("province").value.trim()
           },
-          dependents: dependentsArray // Send to Spring Backend
+          dependents: dependentsArray
         }, accessToken);
       }
 
@@ -203,19 +202,19 @@ if (registerForm) {
       submitBtn.textContent = "Create account";
     }
   });
-  // Password Visibility Toggle Logic
-      const toggleButtons = document.querySelectorAll('.toggle-password');
-      toggleButtons.forEach(button => {
-        button.addEventListener('click', function() {
-          const targetInput = document.getElementById(this.getAttribute('data-target'));
-          
-          if (targetInput.type === 'password') {
-            targetInput.type = 'text';
-            this.textContent = 'Hide';
-          } else {
-            targetInput.type = 'password';
-            this.textContent = 'Show';
-          }
-        });
-      });
+
+  // Password Visibility Toggle
+  const toggleButtons = document.querySelectorAll('.toggle-password');
+  toggleButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      const targetInput = document.getElementById(this.getAttribute('data-target'));
+      if (targetInput.type === 'password') {
+        targetInput.type = 'text';
+        this.textContent = 'Hide';
+      } else {
+        targetInput.type = 'password';
+        this.textContent = 'Show';
+      }
+    });
+  });
 }

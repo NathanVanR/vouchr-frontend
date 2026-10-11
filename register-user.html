@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Create account</title>
   <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@24.5.0/build/css/intlTelInput.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap" rel="stylesheet">
@@ -45,7 +46,6 @@
           </div>
         </div>
 
-        <!-- Common Fields for Both Roles -->
         <div class="form-group">
           <label for="first-name">First name</label>
           <input type="text" id="first-name" name="first-name" placeholder="First name" required autocomplete="given-name">
@@ -63,7 +63,7 @@
 
         <div class="form-group">
           <label for="phone-number">Phone number</label>
-          <input type="tel" id="phone-number" name="phone-number" placeholder="082 123 4567" autocomplete="tel" required>
+          <input type="tel" id="phone-number" name="phone-number" required>
         </div>
 
         <div class="form-group">
@@ -82,7 +82,6 @@
           </div>
         </div>
 
-        <!-- Recipient-Specific Fields Group (Hidden when Staff is selected) -->
         <div id="recipient-fields">
           <div class="form-group">
             <label for="sa-id">SA ID number</label>
@@ -124,7 +123,6 @@
             <input type="text" id="province" name="province" placeholder="Gauteng" autocomplete="address-level1">
           </div>
 
-          <!-- Add this inside #recipient-fields, below the province field -->
           <div class="form-section" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #eaeaea;">
             <h3 style="margin-bottom: 0.5rem;">Dependents (Optional)</h3>
             <p class="muted small" style="margin-bottom: 1rem;">Add children who will share your address and contact details.</p>
@@ -137,7 +135,6 @@
           </div>
         </div>
         
-
         <button type="submit" class="btn btn-primary btn-full">Create account</button>
       </form>
 
@@ -150,39 +147,7 @@
     </div>
   </main>
 
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const roleInputs = document.querySelectorAll('input[name="role"]');
-      const recipientFields = document.getElementById("recipient-fields");
-
-      const toggleRoleFields = (role) => {
-        if (!recipientFields) return;
-        const isRecipient = role === "recipient";
-        
-        // Hide or show the container
-        recipientFields.style.display = isRecipient ? "flex" : "none";
-        
-        // Update required attributes to prevent form submission errors
-        recipientFields.querySelectorAll("input").forEach((field) => {
-          if (field.id !== "unit-number" && field.id !== "complex-name") {
-            field.required = isRecipient;
-          }
-          // Clear values if hidden
-          if (!isRecipient) field.value = ""; 
-        });
-      };
-
-      // Set initial state based on default selection
-      const initialRole = document.querySelector('input[name="role"]:checked')?.value || "recipient";
-      toggleRoleFields(initialRole);
-
-      // Listen for radio button clicks
-      roleInputs.forEach(input => {
-        input.addEventListener("change", (e) => toggleRoleFields(e.target.value));
-      });
-    });
-  </script>
-
+  <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@24.5.0/build/js/intlTelInput.min.js"></script>
   <script src="js/config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script type="module" src="js/supabase-client.js"></script>
