@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Manage Team — Vouchr</title>
+  <title>Manage Team</title>
   <link rel="stylesheet" href="css/main.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,6 +14,14 @@
     <div class="container header-inner">
       <a href="index.html" class="logo">Vouchr</a>
       <nav class="nav-user">
+        <div class="org-switcher-wrapper" id="org-switcher-container" style="display: none;">
+          <label for="active-org-select" class="org-switcher-label">Active Organization</label>
+          <div class="select-wrapper org-select-wrapper">
+            <select id="active-org-select" class="org-select">
+            </select>
+          </div>
+        </div>
+
         <a href="staff-dashboard.html" class="text-link">← Back to Portal</a>
         <button id="logout-btn" class="text-link" style="background:none;border:none;cursor:pointer;">Log out</button>
       </nav>
@@ -35,7 +43,7 @@
         <p class="muted">Enter the email address of a registered staff account to attach them to your organization.</p>
         
         <form id="add-staff-form" class="auth-form" style="margin-top: 1rem;">
-          <div class="form-row">
+          <div class="form-row" style="display: flex; gap: 1rem; align-items: flex-end;">
             <div class="form-group" style="flex: 3;">
               <label for="staff-email">Staff Work Email</label>
               <input 
@@ -46,10 +54,20 @@
                 required
               >
             </div>
-            <div class="form-group" style="flex: 1; align-self: flex-end;">
-              <button type="submit" class="btn btn-primary btn-full">Add Member</button>
+
+            <div class="form-group" style="flex: 2;">
+              <label for="staff-role">Role</label>
+              <select id="staff-role" name="staff-role" required style="width: 100%; padding: 0.5rem;">
+                <option value="STAFF" selected>STAFF</option>
+                <option value="ADMIN">ADMIN</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="flex: 1;">
+              <button type="submit" class="btn btn-primary btn-full" id="submit-btn">Add Member</button>
             </div>
           </div>
+          <div id="form-message" style="margin-top: 1rem; display: none;"></div>
         </form>
       </div>
 
@@ -57,13 +75,14 @@
       <div class="mt-lg">
         <h2>Current Team Roster</h2>
         <div id="staff-list-container" class="mt-md">
-          <!-- Dynamic table populated by app.js -->
+          <!-- Dynamic table populated by manage-staff.js -->
         </div>
       </div>
     </div>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/config.js"></script>
-  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/manage-staff.js"></script>
 </body>
 </html>

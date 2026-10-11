@@ -14,13 +14,10 @@
     <div class="container header-inner">
       <a href="index.html" class="logo">Vouchr</a>
       <nav class="nav-user">
-        <!-- Active Organization Context Switcher -->
         <div class="org-switcher-wrapper" id="org-switcher-container" style="display: none;">
           <label for="active-org-select" class="org-switcher-label">Active Organization</label>
           <div class="select-wrapper org-select-wrapper">
-            <select id="active-org-select" class="org-select">
-              <!-- Populated dynamically via JS -->
-            </select>
+            <select id="active-org-select" class="org-select"></select>
           </div>
         </div>
 
@@ -34,8 +31,8 @@
 
   <main class="dashboard">
     <div class="container">
-      
-      <!-- Banner shown when staff is not attached to any organization -->
+
+      <!-- Banner when staff has no organisations -->
       <section id="unattached-staff-banner" class="auth-card" style="display: none; text-align: center; margin-top: 2rem;">
         <h2>You are not attached to an organization yet</h2>
         <p class="muted">You can register a new organization to become an Admin, or ask an existing Organization Admin to add your email address.</p>
@@ -44,86 +41,112 @@
         </div>
       </section>
 
-      <!-- Main Organization View: Enabled only when an active Org is selected -->
+      <!-- Main content – only shown when user has at least one org -->
       <div id="org-portal-content" style="display: none;">
+
         <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
           <div>
             <p class="eyebrow" id="org-eyebrow">Organization</p>
-            <h1>Voucher Issuance & Overview</h1>
+            <h1 id="page-title">Overview</h1>
           </div>
         </div>
 
-        <!-- Stats Summary Row -->
-        <div class="stats-row">
-          <div class="stat-card">
-            <span class="stat-value" id="stat-issued-count">0</span>
-            <span class="stat-label">Active Vouchers</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-value" id="stat-total-issued-value">R 0</span>
-            <span class="stat-label">Total Outstanding Value</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-value" id="stat-recipient-count">0</span>
-            <span class="stat-label">Registered Recipients</span>
-          </div>
-        </div>
+        <!-- ========== FEEDING SCHEME VIEW ========== -->
+        <div id="feeding-scheme-view" style="display: none;">
 
-        <!-- Issue Voucher Section -->
-        <section class="auth-card" style="max-width: 100%; margin-top: 2rem;">
-          <h2>Issue Voucher to Recipient</h2>
-          <form id="issue-voucher-form" class="auth-form" style="margin-top: 1rem;">
-            <div class="form-row">
-              <!-- Searchable Recipient Input (Typeable) -->
-              <div class="form-group" style="flex: 2;">
-                <label for="recipient-search">Recipient (Phone Number or Name)</label>
-                <input 
-                  type="text" 
-                  id="recipient-search" 
-                  name="recipient-search" 
-                  list="recipients-datalist" 
-                  placeholder="e.g. 0821234567 or Jane Doe" 
-                  required 
-                  autocomplete="off"
-                >
-                <datalist id="recipients-datalist">
-                  <!-- Populated dynamically via JS -->
-                </datalist>
+          <!-- ADMIN content -->
+          <div id="fs-admin-content" style="display: none;">
+            <div class="stats-row">
+              <div class="stat-card">
+                <span class="stat-value" id="fs-stat-beneficiaries">0</span>
+                <span class="stat-label">Beneficiaries</span>
               </div>
-
-              <!-- Voucher Type / Category Dropdown -->
-              <div class="form-group" style="flex: 1.5;">
-                <label for="voucher-type">Voucher Category / Item</label>
-                <div class="select-wrapper">
-                  <select id="voucher-type" name="voucher-type" required>
-                    <option value="" disabled selected>Select option</option>
-                    <option value="food_parcel">Food Parcel Basket</option>
-                    <option value="school_supplies">School Uniform & Supplies</option>
-                    <option value="electricity">Prepaid Electricity</option>
-                    <option value="cash">Custom Cash Amount (ZAR)</option>
-                  </select>
-                </div>
+              <div class="stat-card">
+                <span class="stat-value" id="fs-stat-meals-today">0</span>
+                <span class="stat-label">Meals Today</span>
               </div>
-
-              <!-- Dynamic ZAR Amount Field (Visible when 'cash' or custom amount is selected) -->
-              <div class="form-group" id="custom-amount-group" style="flex: 1; display: none;">
-                <label for="voucher-amount">Amount (ZAR)</label>
-                <input type="number" id="voucher-amount" name="voucher-amount" placeholder="e.g. 250" min="10">
+              <div class="stat-card">
+                <span class="stat-value" id="fs-stat-schools">0</span>
+                <span class="stat-label">Schools / Sites</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-value" id="fs-stat-staff">0</span>
+                <span class="stat-label">Staff Members</span>
               </div>
             </div>
 
-            <button type="submit" class="btn btn-primary mt-sm">Generate and Issue Voucher</button>
-          </form>
-        </section>
+            <section class="auth-card" style="margin-top: 2rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>Beneficiaries</h2>
+                <button class="btn btn-primary btn-sm" id="btn-add-beneficiary">Add Beneficiary</button>
+              </div>
+              <div id="fs-admin-beneficiaries-table" class="mt-md">
+                <p class="muted">Loading beneficiaries…</p>
+              </div>
+            </section>
 
-        <!-- Issued Vouchers Table -->
-        <section class="mt-lg">
-          <h2>Recently Issued Vouchers</h2>
-          <div id="issued-vouchers-container" class="mt-md">
-            <!-- Dynamic rendering via JS -->
+            <section class="auth-card" style="margin-top: 2rem;">
+              <h2>Recent Feeding Records</h2>
+              <div id="fs-admin-feeding-log" class="mt-md">
+                <p class="muted">Loading feeding log…</p>
+              </div>
+            </section>
           </div>
-        </section>
-      </div>
+
+          <!-- NORMAL STAFF content -->
+          <div id="fs-staff-content" style="display: none;">
+            <div class="stats-row">
+              <div class="stat-card">
+                <span class="stat-value" id="fs-staff-stat-assigned">0</span>
+                <span class="stat-label">Assigned Beneficiaries</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-value" id="fs-staff-stat-meals-today">0</span>
+                <span class="stat-label">Meals I Recorded Today</span>
+              </div>
+            </div>
+
+            <section class="auth-card" style="margin-top: 2rem;">
+              <h2>Record a Feeding</h2>
+              <form id="record-feeding-form" class="auth-form" style="margin-top: 1rem;">
+                <div class="form-group">
+                  <label for="feeding-beneficiary">Beneficiary</label>
+                  <select id="feeding-beneficiary" required>
+                    <option value="" disabled selected>Select beneficiary</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="feeding-meal-type">Meal Type</label>
+                  <select id="feeding-meal-type" required>
+                    <option value="breakfast">Breakfast</option>
+                    <option value="lunch">Lunch</option>
+                    <option value="supper">Supper</option>
+                    <option value="snack">Snack</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="feeding-notes">Notes (optional)</label>
+                  <textarea id="feeding-notes" rows="2" placeholder="Any comments…"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Record Feeding</button>
+              </form>
+            </section>
+
+            <section class="auth-card" style="margin-top: 2rem;">
+              <h2>My Recent Feedings</h2>
+              <div id="fs-staff-feeding-log" class="mt-md">
+                <p class="muted">Loading…</p>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <!-- ========== DEFAULT VIEW (other org types) ========== -->
+        <div id="default-org-view" style="display: none;">
+          <p class="muted">This organisation type does not have a specialised dashboard yet.</p>
+        </div>
+
+      </div><!-- /#org-portal-content -->
 
     </div>
   </main>

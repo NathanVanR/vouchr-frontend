@@ -152,7 +152,7 @@ if (registerForm) {
           lastName: document.getElementById("last-name").value.trim(),
           email,
           phoneNumber: document.getElementById("phone-number").value.trim(),
-          organizationId: document.getElementById("organization-id").value.trim()
+          //organizationId: document.getElementById("organization-id").value.trim()
         }, accessToken);
       } else {
         

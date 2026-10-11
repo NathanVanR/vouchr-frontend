@@ -120,18 +120,48 @@ async function initEmployeePortal() {
   `).join("");
 
   const updateOrgContext = (orgId) => {
-    const org = userOrganizations[orgId];
-    if (!org) return;
+  const org = userOrganizations[orgId];
+  if (!org) return;
 
-    localStorage.setItem("activeOrgId", orgId);
-    if (orgEyebrow) orgEyebrow.textContent = org.name;
+  localStorage.setItem("activeOrgId", orgId);
+  if (orgEyebrow) orgEyebrow.textContent = org.name;
 
-    const isAdmin = org.role === "ROLE_ORG_ADMIN" || org.role === "ADMIN";
-    if (userRoleDisplay) userRoleDisplay.textContent = isAdmin ? "Organization Admin" : "Staff";
-    if (navManageStaff) navManageStaff.style.display = isAdmin ? "inline-block" : "none";
+  const isAdmin = org.role === "ROLE_ORG_ADMIN" || org.role === "ADMIN";
+  if (userRoleDisplay) userRoleDisplay.textContent = isAdmin ? "Organization Admin" : "Staff";
+  if (navManageStaff) navManageStaff.style.display = isAdmin ? "inline-block" : "none";
 
-    loadOrgDashboardData(orgId);
-  };
+  // ----- View switching -----
+  const feedingView   = document.getElementById("feeding-scheme-view");
+  const defaultView   = document.getElementById("default-org-view");
+  const fsAdmin       = document.getElementById("fs-admin-content");
+  const fsStaff       = document.getElementById("fs-staff-content");
+  const pageTitle     = document.getElementById("page-title");
+
+  // Hide everything first
+  feedingView.style.display = "none";
+  defaultView.style.display = "none";
+  fsAdmin.style.display = "none";
+  fsStaff.style.display = "none";
+
+  const orgType = (org.orgType || "").toUpperCase();
+
+  if (orgType === "FEEDING_SCHEME") {
+    feedingView.style.display = "block";
+    pageTitle.textContent = "Feeding Scheme Overview";
+
+    if (isAdmin) {
+      fsAdmin.style.display = "block";
+      loadFeedingSchemeAdminData(orgId);
+    } else {
+      fsStaff.style.display = "block";
+      loadFeedingSchemeStaffData(orgId);
+    }
+  } else {
+    defaultView.style.display = "block";
+    pageTitle.textContent = "Overview";
+    // later you can load voucher UI here
+  }
+};
 
   activeOrgSelect.addEventListener("change", (e) => updateOrgContext(e.target.value));
 
@@ -158,3 +188,15 @@ async function loadOrgDashboardData(orgId) {
 }
 
 document.addEventListener("DOMContentLoaded", initEmployeePortal);
+
+async function loadFeedingSchemeAdminData(orgId) {
+  console.log("Loading ADMIN feeding-scheme data for", orgId);
+  // TODO: call your APIs and populate
+  // #fs-stat-beneficiaries, #fs-admin-beneficiaries-table, etc.
+}
+
+async function loadFeedingSchemeStaffData(orgId) {
+  console.log("Loading STAFF feeding-scheme data for", orgId);
+  // TODO: call your APIs and populate
+  // the beneficiary dropdown + recent feedings
+}

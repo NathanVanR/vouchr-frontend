@@ -64,3 +64,10 @@ export async function createOrganization(payload) {
     body: JSON.stringify(payload)
   });
 }
+
+export async function addStaff(payload) {
+  return request("/api/organization/add-staff", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
