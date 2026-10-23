@@ -71,3 +71,10 @@ export async function addStaff(payload) {
     body: JSON.stringify(payload)
   });
 }
+
+export async function createHub(payload) {
+  return request("/api/hub/create-hub", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}

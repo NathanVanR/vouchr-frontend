@@ -96,6 +96,49 @@
           </section>
         </div>
 
+        <!-- Create Hub (Admin only) -->
+          <section id="create-hub-section" class="auth-card" style="margin-top: 1.5rem; display: none;">
+            <h2>Create Hub</h2>
+            <p class="muted" style="margin-bottom: 1rem;">
+              Create a hub for this feeding scheme. Only organization admins can do this.
+            </p>
+            <form id="create-hub-form" class="auth-form">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="hub-name">Hub name</label>
+                  <input type="text" id="hub-name" placeholder="Leave blank to use organisation name">
+                </div>
+                <div class="form-group">
+                  <label for="hub-city">City</label>
+                  <input type="text" id="hub-city" placeholder="e.g. Johannesburg">
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary">Create Hub</button>
+            </form>
+            <p id="create-hub-message" class="muted" style="margin-top: 0.75rem;"></p>
+          </section>
+
+          <!-- Add Organizations to Hub -->
+          <section id="add-org-to-hub-section" class="auth-card" style="margin-top: 1.5rem; display: none;">
+            <h2>Add organization to hub</h2>
+            <p class="muted" style="margin-bottom: 1rem;">
+              Search by organization name, then add it to this hub.
+            </p>
+
+            <div class="form-group">
+              <label for="org-search">Search organizations</label>
+              <input
+                type="search"
+                id="org-search"
+                placeholder="Start typing org name…"
+                autocomplete="off"
+              />
+            </div>
+
+            <ul id="org-search-results" class="search-results"></ul>
+            <p id="add-org-message" class="message" hidden></p>
+          </section>
+
         <!-- ========== OTHER ORG TYPES ========== -->
         <div id="default-org-view" style="display: none;">
           <div class="auth-card" style="text-align: center; margin-top: 2rem;">
