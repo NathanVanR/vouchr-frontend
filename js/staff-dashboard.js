@@ -268,10 +268,21 @@ async function initEmployeePortal() {
     userRoleDisplay.textContent = isAdmin ? 'Organization Admin' : 'Staff';
     navManageStaff.style.display = isAdmin ? 'inline-block' : 'none';
 
+    // An org can only belong to one hub, so creating one is only offered when it has none
     const createHubSection = document.getElementById('create-hub-section');
     if (createHubSection) {
-      createHubSection.style.display = isAdmin ? 'block' : 'none';
+      createHubSection.style.display = isAdmin && !org.hubId ? 'block' : 'none';
     }
+
+    const hubInfo = document.getElementById('hub-info');
+    const scopeContainer = document.getElementById('children-scope-container');
+    const scopeSelect = document.getElementById('children-scope');
+    if (hubInfo) {
+      hubInfo.textContent = org.hubId ? `Hub: ${org.hubName || ''}` : '';
+      hubInfo.style.display = org.hubId ? 'block' : 'none';
+    }
+    if (scopeContainer) scopeContainer.style.display = org.hubId ? 'block' : 'none';
+    if (scopeSelect) scopeSelect.value = 'org';
 
     // If this org already has a hub, show the "add org" section
     if (isAdmin && org.hubId) {
@@ -301,6 +312,11 @@ async function initEmployeePortal() {
   };
 
   activeOrgSelect.addEventListener('change', (e) => updateOrgContext(e.target.value));
+
+  const childrenScope = document.getElementById('children-scope');
+  if (childrenScope) {
+    childrenScope.addEventListener('change', () => loadChildren(activeOrgSelect.value));
+  }
 
   const activeOrgId = localStorage.getItem('activeOrgId') || orgIds[0];
   activeOrgSelect.value = activeOrgId;
@@ -380,9 +396,10 @@ async function initEmployeePortal() {
         // Persist hubId on the local user object so the add-org section appears
         if (data.hubId && userOrganizations[orgId]) {
           userOrganizations[orgId].hubId = data.hubId;
+          userOrganizations[orgId].hubName = data.hubName;
           user.userOrganizations = userOrganizations;
           localStorage.setItem('user', JSON.stringify(user));
-          showAddOrgSection(data.hubId);
+          updateOrgContext(orgId);
         }
       } catch (err) {
         console.error(err);
@@ -399,9 +416,12 @@ async function loadChildren(orgId) {
   const token = await getAuthToken();
   if (!token) return;
 
+  const showHub = document.getElementById('children-scope')?.value === 'hub';
+  const endpoint = showHub ? 'hub-children' : 'children';
+
   try {
     const res = await fetch(
-      `${window.VOUCHR_CONFIG.apiBaseUrl}/api/feeding-scheme/${orgId}/children`,
+      `${window.VOUCHR_CONFIG.apiBaseUrl}/api/feeding-scheme/${orgId}/${endpoint}`,
       {
         headers: { 'Authorization': `Bearer ${token}` }
       }
@@ -427,6 +447,9 @@ async function loadChildren(orgId) {
             <th>Surname</th>
             <th>Gender</th>
             <th>School</th>
+            <th>Organisation</th>
+            <th>Registered by</th>
+            <th>Added</th>
           </tr>
         </thead>
         <tbody>
@@ -436,6 +459,9 @@ async function loadChildren(orgId) {
               <td>${escapeHtml(c.surname)}</td>
               <td>${escapeHtml(c.gender || '—')}</td>
               <td>${escapeHtml(c.school || '—')}</td>
+              <td>${escapeHtml(c.organizationName || '—')}</td>
+              <td>${escapeHtml(c.registeredByName || '—')}</td>
+              <td>${c.createdDate ? new Date(c.createdDate).toLocaleDateString() : '—'}</td>
             </tr>
           `).join('')}
         </tbody>

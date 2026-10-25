@@ -90,6 +90,14 @@
           <!-- Children List -->
           <section class="auth-card" style="margin-top: 2rem;">
             <h2>Children in this Feeding Scheme</h2>
+            <p id="hub-info" class="muted" style="display: none;"></p>
+            <div id="children-scope-container" style="display: none; margin-top: 0.75rem;">
+              <label for="children-scope">Show</label>
+              <select id="children-scope">
+                <option value="org">My organisation</option>
+                <option value="hub">Whole hub (read-only)</option>
+              </select>
+            </div>
             <div id="children-list" class="mt-md">
               <p class="muted">Loading children…</p>
             </div>

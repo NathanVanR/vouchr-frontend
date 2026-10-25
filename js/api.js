@@ -30,7 +30,7 @@ async function request(endpoint, options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data.error || data.message || response.statusText || "Request failed");
+    throw new Error(data.message || data.error || response.statusText || "Request failed");
   }
 
   return data;
