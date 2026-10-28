@@ -64,3 +64,44 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 });
+
+// ---- Street address: one field with a number and a name, e.g. "12 Mandela Way" ----
+// Same rule as the backend (util/StreetAddress.java).
+export const STREET_ADDRESS_MESSAGE =
+  "Enter both a street number and a street name, for example 12 Mandela Way";
+
+export function normaliseStreetAddress(value) {
+  return (value || "").trim().replace(/\s+/g, " ");
+}
+
+export function isValidStreetAddress(value) {
+  const normalised = normaliseStreetAddress(value);
+  if (!normalised || normalised.length > 255) return false;
+  if (!/^[\p{L}\p{N} .,'\u2019/#&()\-]+$/u.test(normalised)) return false;
+
+  let hasNumber = false;
+  let hasName = false;
+  for (const raw of normalised.split(" ")) {
+    const word = raw.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
+    if (/\p{Nd}/u.test(word)) {
+      hasNumber = true;
+    } else if (/^\p{L}[\p{L}'\u2019\-]*\p{L}$/u.test(word)) {
+      hasName = true;
+    }
+  }
+  return hasNumber && hasName;
+}
+
+/** Keeps the browser's own form validation in step with the rule, so an invalid address blocks submit. */
+export function attachStreetAddressValidation(input) {
+  if (!input) return;
+  const check = () => {
+    input.setCustomValidity(
+      input.value.trim() && !isValidStreetAddress(input.value) ? STREET_ADDRESS_MESSAGE : ""
+    );
+  };
+  input.addEventListener("input", check);
+  input.addEventListener("blur", check);
+  check();
+}
+

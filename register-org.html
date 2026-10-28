@@ -41,7 +41,7 @@
                 <option value="" disabled selected>Select type</option>
                 <option value="npo">Non-Profit / NGO</option>
                 <option value="religious">Religious organization</option>
-                <option value="feeding_scheme">Feeding Scheme</option>
+                <option value="other">Other</option>
               </select>
             </div>
           </div>
@@ -94,15 +94,11 @@
             </div>
           </div>
 
-          <div class="form-row" style="display: flex; gap: 1rem;">
-            <div class="form-group" style="flex: 1;">
-              <label for="org-street-number">Street number</label>
-              <input type="text" id="org-street-number" name="org-street-number" placeholder="123">
-            </div>
-            <div class="form-group" style="flex: 3;">
-              <label for="org-street-name">Street name</label>
-              <input type="text" id="org-street-name" name="org-street-name" placeholder="Mandela Way">
-            </div>
+          <div class="form-group">
+            <label for="org-street-address">Street address</label>
+            <input type="text" id="org-street-address" name="org-street-address" placeholder="12 Mandela Way"
+                   maxlength="255" required autocomplete="address-line1">
+            <small class="muted">Street number and street name, for example 12 Mandela Way.</small>
           </div>
 
           <div class="form-row" style="display: flex; gap: 1rem;">

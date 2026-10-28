@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo">Vouchr</a>
+      <nav class="nav-user">
+        <a href="staff-dashboard.html" class="text-link">Back to dashboard</a>
+        <button id="logout-btn" class="text-link" style="background:none;border:none;cursor:pointer;">Log out</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="dashboard">
+    <div class="container">
+
+      <p id="project-error" class="muted" hidden></p>
+
+      <div id="project-content" hidden>
+        <div class="page-header">
+          <div>
+            <p class="eyebrow" id="project-eyebrow"></p>
+            <h1 id="project-title"></h1>
+            <p class="muted" id="project-description"></p>
+            <p id="project-badges"></p>
+          </div>
+        </div>
+
+        <p id="readonly-banner" class="message" hidden></p>
+
+        <!-- Settings (org admins only) -->
+        <section id="settings-section" class="auth-card" hidden>
+          <h2>Project settings</h2>
+          <div class="form-row" style="margin-top: 1rem;">
+            <div class="form-group">
+              <label for="visibility-select">Who can see this project's people?</label>
+              <select id="visibility-select">
+                <option value="PRIVATE">Only our organisation</option>
+                <option value="SHARED_WITH_HUB">Our organisation and our hub (view only)</option>
+              </select>
+              <p class="muted" id="visibility-hint" style="margin-top: 0.5rem;"></p>
+            </div>
+            <div class="form-group">
+              <label for="status-select">Status</label>
+              <select id="status-select">
+                <option value="ACTIVE">Active</option>
+                <option value="ARCHIVED">Archived (no new people can be added)</option>
+              </select>
+            </div>
+          </div>
+          <p id="settings-message" class="muted"></p>
+        </section>
+
+        <!-- Enrol a registered person -->
+        <section id="add-section" class="auth-card" style="margin-top: 1.5rem;" hidden>
+          <h2>Enrol a person</h2>
+          <p class="muted">
+            Only people with a signed consent can be enrolled. Register new people, or capture a missing consent,
+            from the <a href="staff-dashboard.html">dashboard</a>.
+          </p>
+          <form id="enrol-form" class="auth-form" style="margin-top: 1rem;">
+            <div class="form-group">
+              <label for="enrol-person">Person</label>
+              <select id="enrol-person" required></select>
+            </div>
+            <div class="form-row" id="extra-fields"></div>
+            <button type="submit" class="btn btn-primary">Enrol</button>
+          </form>
+          <p id="add-message" class="muted" style="margin-top: 0.75rem;"></p>
+        </section>
+
+        <!-- People -->
+        <section class="auth-card" style="margin-top: 2rem;">
+          <h2>People</h2>
+          <div id="beneficiaries" class="mt-md">
+            <p class="muted">Loading…</p>
+          </div>
+        </section>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module" src="js/config.js"></script>
+  <script type="module" src="js/project.js"></script>
+</body>
+</html>

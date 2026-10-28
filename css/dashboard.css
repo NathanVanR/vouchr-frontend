@@ -289,3 +289,150 @@
     gap: 0.25rem;
   }
 }
+/* Projects */
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.project-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  color: inherit;
+  text-decoration: none;
+}
+
+.project-card:hover {
+  border-color: var(--text-muted);
+}
+
+.project-card-type {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.project-card-badges {
+  margin-top: 0.5rem;
+}
+
+/* People & consent flow */
+.table-actions {
+  white-space: nowrap;
+}
+
+.table-actions .text-link {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 0.5rem 0 0;
+}
+
+.consent-dialog {
+  width: min(720px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--canvas);
+  color: var(--text);
+}
+
+.consent-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.consent-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.consent-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+}
+
+.consent-handover {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-lg);
+  background: var(--surface-secondary);
+}
+
+.consent-scroll {
+  max-height: 50vh;
+  overflow-y: auto;
+  margin: 1rem 0 0.5rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.consent-clause + .consent-clause {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.consent-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.consent-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.signature-canvas {
+  display: block;
+  width: 100%;
+  height: 200px;
+  margin: 0.5rem 0;
+  border: 1px dashed var(--text-muted);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  cursor: crosshair;
+}
+
+.signature-preview {
+  display: block;
+  max-width: 100%;
+  max-height: 120px;
+  margin: 0.75rem 0;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+/* Inline status messages */
+.message.error {
+  color: var(--warning);
+}
+
+.message.success {
+  color: var(--success);
+}
+
+.consent-category {
+  margin: 0.25rem 0 0.25rem 0.5rem;
+}
+
+.consent-category .consent-check {
+  margin-top: 0.25rem;
+}

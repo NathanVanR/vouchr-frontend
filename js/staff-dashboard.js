@@ -1,75 +1,194 @@
 import { getStoredUser } from './utils.js';
-import { createHub } from './api.js';
+import {
+  createHub, createProject, getProjects,
+  getHub, getHubProjects, leaveHub, searchHubOrgs, addOrgToHub,
+  getPeople, withdrawConsent, getPlatformMe
+} from './api.js';
+import { getAuthToken, escapeHtml, PROJECT_TYPE_LABELS } from './session.js';
+import { openConsentFlow, openConsentPdf } from './consent.js';
 
-function getSupabaseClient() {
-  if (window._supabaseClient) return window._supabaseClient;
+// ---------- Projects ----------
 
-  const cfg = window.VOUCHR_CONFIG?.supabase;
-  if (!cfg?.url || !cfg?.anonKey) {
-    console.error('VOUCHR_CONFIG.supabase is missing');
-    return null;
-  }
+function projectCard(project, { showOrg = false } = {}) {
+  const badges = [];
+  if (project.status === 'ARCHIVED') badges.push('<span class="badge badge-expired">Archived</span>');
+  badges.push(project.visibility === 'SHARED_WITH_HUB'
+    ? '<span class="badge badge-active">Shared with hub</span>'
+    : '<span class="badge badge-redeemed">Private</span>');
 
-  if (typeof supabase === 'undefined') {
-    console.error('Supabase JS library not found');
-    return null;
-  }
+  return `
+    <a class="project-card" href="project.html?id=${encodeURIComponent(project.projectId)}">
+      <span class="project-card-type">${escapeHtml(PROJECT_TYPE_LABELS[project.projectType] || project.projectType)}</span>
+      <strong>${escapeHtml(project.name)}</strong>
+      ${showOrg ? `<span class="muted">${escapeHtml(project.organizationName)}</span>` : ''}
+      ${project.description ? `<span class="muted">${escapeHtml(project.description)}</span>` : ''}
+      <span class="project-card-badges">${badges.join(' ')}</span>
+    </a>`;
+}
 
-  const { createClient } = supabase;
+async function loadProjects(orgId) {
+  const container = document.getElementById('projects-list');
+  container.innerHTML = '<p class="muted">Loading projects…</p>';
+
   try {
-    window._supabaseClient = createClient(cfg.url, cfg.anonKey);
-    return window._supabaseClient;
+    const projects = await getProjects(orgId, await getAuthToken());
+    container.innerHTML = projects.length
+      ? projects.map(p => projectCard(p)).join('')
+      : '<p class="muted">No projects yet. Admins can add one below.</p>';
   } catch (err) {
-    console.error('Failed to create Supabase client:', err);
-    return null;
+    console.error(err);
+    container.innerHTML = `<p class="muted">${escapeHtml(err.message || 'Failed to load projects.')}</p>`;
   }
 }
 
-async function getAuthToken() {
-  const client = getSupabaseClient();
-  if (!client) return null;
-  const { data: { session } } = await client.auth.getSession();
-  return session?.access_token || null;
+// ---------- People & consent ----------
+
+let currentPeople = [];
+
+const CONSENT_BADGES = {
+  VALID: '<span class="badge badge-active">Consent signed</span>',
+  MISSING: '<span class="badge badge-expired">No consent</span>',
+  WITHDRAWN: '<span class="badge badge-expired">Withdrawn</span>'
+};
+
+async function loadPeople(orgId) {
+  const container = document.getElementById('people-list');
+  container.innerHTML = '<p class="muted">Loading…</p>';
+
+  try {
+    currentPeople = await getPeople(orgId, await getAuthToken());
+  } catch (err) {
+    console.error(err);
+    currentPeople = [];
+    container.innerHTML = `<p class="muted">${escapeHtml(err.message || 'Failed to load people.')}</p>`;
+    return;
+  }
+
+  if (!currentPeople.length) {
+    container.innerHTML = '<p class="muted">Nobody is registered yet.</p>';
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>Name</th><th>Surname</th><th>Gender</th><th>Consent</th><th>Shared with partner orgs</th><th></th></tr>
+        </thead>
+        <tbody>
+          ${currentPeople.map(p => `
+            <tr>
+              <td>${escapeHtml(p.name)}</td>
+              <td>${escapeHtml(p.surname)}</td>
+              <td>${escapeHtml(p.gender || '—')}</td>
+              <td>${CONSENT_BADGES[p.consentStatus] || escapeHtml(p.consentStatus)}</td>
+              <td>${p.consentStatus === 'VALID' ? (p.sharesWithPartners ? 'Yes' : 'No') : '—'}</td>
+              <td class="table-actions">
+                ${p.consentStatus === 'VALID' ? `
+                  <button type="button" class="text-link" data-action="view" data-consent="${escapeHtml(p.consentId)}">View signed copy</button>
+                  <button type="button" class="text-link" data-action="withdraw" data-consent="${escapeHtml(p.consentId)}">Withdraw</button>` : ''}
+                ${p.consentStatus === 'WITHDRAWN' ? `
+                  <button type="button" class="text-link" data-action="view" data-consent="${escapeHtml(p.consentId)}">View signed copy</button>` : ''}
+                ${p.consentStatus !== 'VALID' ? `
+                  <button type="button" class="text-link" data-action="capture" data-person="${escapeHtml(p.personId)}">Capture consent</button>` : ''}
+              </td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
 }
 
-function escapeHtml(text) {
-  if (!text) return '';
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+async function onPeopleAction(e, orgId) {
+  const button = e.target.closest('button[data-action]');
+  if (!button) return;
+
+  if (button.dataset.action === 'view') {
+    openConsentPdf(button.dataset.consent);
+  } else if (button.dataset.action === 'capture') {
+    startConsentFlow(orgId, [button.dataset.person]);
+  } else if (button.dataset.action === 'withdraw') {
+    const reason = prompt('Withdraw this consent? Everyone covered by it will no longer be able to be enrolled, and '
+      + 'will be hidden from partner organisations.\n\nReason (optional):');
+    if (reason === null) return;
+    try {
+      await withdrawConsent(button.dataset.consent, reason.trim(), await getAuthToken());
+      showMessage('people-message', 'Consent withdrawn.');
+      loadPeople(orgId);
+    } catch (err) {
+      console.error(err);
+      showMessage('people-message', err.message || 'Failed to withdraw consent');
+    }
+  }
 }
 
-// ---------- Hub: add org ----------
+function startConsentFlow(orgId, preselectIds = []) {
+  openConsentFlow({
+    orgId,
+    people: currentPeople,
+    preselectIds,
+    onDone: () => {
+      showMessage('people-message', 'Consent saved.');
+      loadPeople(orgId);
+    }
+  });
+}
+
+// ---------- Hub ----------
+
 let currentHubId = null;
 
-function showAddOrgSection(hubId) {
-  currentHubId = hubId;
-  const section = document.getElementById('add-org-to-hub-section');
-  if (!section) return;
-  section.style.display = 'block';
-  const input = document.getElementById('org-search');
-  const list = document.getElementById('org-search-results');
-  if (input) input.value = '';
-  if (list) list.innerHTML = '';
-  hideAddOrgMessage();
+function showMessage(id, text, type = '') {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.hidden = !text;
+  el.textContent = text || '';
+  if (el.classList.contains('message')) el.className = `message ${type}`.trim();
 }
 
-function hideAddOrgMessage() {
-  const el = document.getElementById('add-org-message');
-  if (!el) return;
-  el.hidden = true;
-  el.textContent = '';
-  el.className = 'message';
-}
+async function loadHub(org, orgId, isAdmin) {
+  const hubSection = document.getElementById('hub-section');
+  const createHubSection = document.getElementById('create-hub-section');
+  const addOrgSection = document.getElementById('add-org-to-hub-section');
+  const leaveBtn = document.getElementById('leave-hub-btn');
 
-function showAddOrgMessage(text, type = 'error') {
-  const el = document.getElementById('add-org-message');
-  if (!el) return;
-  el.hidden = false;
-  el.textContent = text;
-  el.className = `message ${type}`;
+  currentHubId = org.hubId || null;
+
+  // An org can only be in one hub, so creating one is only offered when it has none
+  createHubSection.style.display = isAdmin && !org.hubId ? 'block' : 'none';
+  hubSection.style.display = org.hubId ? 'block' : 'none';
+  addOrgSection.style.display = isAdmin && org.hubId ? 'block' : 'none';
+  leaveBtn.style.display = isAdmin && org.hubId ? 'inline-block' : 'none';
+  showMessage('hub-message', '');
+  showMessage('add-org-message', '');
+  document.getElementById('org-search').value = '';
+  document.getElementById('org-search-results').innerHTML = '';
+
+  if (!org.hubId) return;
+
+  document.getElementById('hub-title').textContent = `Hub: ${org.hubName || ''}`;
+  document.getElementById('hub-orgs').textContent = 'Loading…';
+  const shared = document.getElementById('hub-shared-projects');
+  shared.innerHTML = '<p class="muted">Loading…</p>';
+
+  try {
+    const token = await getAuthToken();
+    const [hub, projects] = await Promise.all([
+      getHub(org.hubId, token),
+      getHubProjects(org.hubId, token)
+    ]);
+    const others = hub.organizations.filter(o => o.organizationId !== orgId).map(o => o.name);
+    document.getElementById('hub-title').textContent = `Hub: ${hub.hubName} (${hub.city})`;
+    document.getElementById('hub-orgs').textContent = others.length
+      ? `Also in this hub: ${others.join(', ')}`
+      : 'No other organisations have joined this hub yet.';
+    shared.innerHTML = projects.length
+      ? projects.map(p => projectCard(p, { showOrg: true })).join('')
+      : '<p class="muted">No projects have been shared with the hub yet.</p>';
+  } catch (err) {
+    console.error(err);
+    document.getElementById('hub-orgs').textContent = err.message || 'Failed to load hub';
+    shared.innerHTML = '';
+  }
 }
 
 function setupOrgSearch() {
@@ -89,40 +208,21 @@ function setupOrgSearch() {
 }
 
 async function searchOrganizations(query) {
-  const token = await getAuthToken();
-  if (!token) return;
-
   try {
-    const res = await fetch(
-      `${window.VOUCHR_CONFIG.apiBaseUrl}/api/hub/search-orgs?q=${encodeURIComponent(query)}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || 'Search failed');
-    }
-
-    const results = await res.json();
+    const results = await searchHubOrgs(query, await getAuthToken());
     renderOrgResults(results);
   } catch (err) {
     console.error(err);
-    showAddOrgMessage(err.message || 'Search failed');
+    showMessage('add-org-message', err.message || 'Search failed', 'error');
   }
 }
 
 function renderOrgResults(results) {
   const list = document.getElementById('org-search-results');
-  if (!list) return;
   list.innerHTML = '';
 
   if (!results.length) {
-    list.innerHTML = '<li><span class="org-meta">No organizations found</span></li>';
+    list.innerHTML = '<li><span class="org-meta">No other organizations match. Organizations you already belong to are not listed.</span></li>';
     return;
   }
 
@@ -131,7 +231,7 @@ function renderOrgResults(results) {
     const info = document.createElement('div');
     info.innerHTML = `
       <strong>${escapeHtml(org.name)}</strong>
-      <div class="org-meta">${escapeHtml(org.city || '')}</div>
+      <div class="org-meta">${escapeHtml(org.city || '')}${org.alreadyInHub ? ' · already in a hub (it must leave that hub first)' : ''}</div>
     `;
 
     const btn = document.createElement('button');
@@ -141,7 +241,7 @@ function renderOrgResults(results) {
       btn.disabled = true;
     } else {
       btn.textContent = 'Add to hub';
-      btn.addEventListener('click', () => addOrgToHub(org.organizationId, btn));
+      btn.addEventListener('click', () => addOrg(org.organizationId, btn));
     }
 
     li.append(info, btn);
@@ -149,48 +249,23 @@ function renderOrgResults(results) {
   });
 }
 
-async function addOrgToHub(organizationId, button) {
+async function addOrg(organizationId, button) {
   if (!currentHubId) {
-    showAddOrgMessage('No hub selected');
+    showMessage('add-org-message', 'No hub selected', 'error');
     return;
   }
 
   button.disabled = true;
   button.textContent = 'Adding…';
-  hideAddOrgMessage();
-
-  const token = await getAuthToken();
-  if (!token) {
-    showAddOrgMessage('Not authenticated');
-    button.disabled = false;
-    button.textContent = 'Add to hub';
-    return;
-  }
+  showMessage('add-org-message', '');
 
   try {
-    const res = await fetch(
-      `${window.VOUCHR_CONFIG.apiBaseUrl}/api/hub/${currentHubId}/add-org`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ organizationId })
-      }
-    );
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || 'Failed to add organization');
-    }
-
-    showAddOrgMessage('Organization added to hub', 'success');
+    await addOrgToHub(currentHubId, organizationId, await getAuthToken());
+    showMessage('add-org-message', 'Organization added to hub', 'success');
     button.textContent = 'Added';
-    button.disabled = true;
   } catch (err) {
     console.error(err);
-    showAddOrgMessage(err.message || 'Failed to add organization');
+    showMessage('add-org-message', err.message || 'Failed to add organization', 'error');
     button.disabled = false;
     button.textContent = 'Add to hub';
   }
@@ -207,7 +282,6 @@ async function initEmployeePortal() {
   const userRoleDisplay = document.getElementById('user-role-display');
   const navManageStaff = document.getElementById('nav-manage-staff');
   const orgEyebrow = document.getElementById('org-eyebrow');
-  const pageTitle = document.getElementById('page-title');
 
   const user = getStoredUser();
   if (!user) {
@@ -254,7 +328,7 @@ async function initEmployeePortal() {
   orgSwitcherContainer.style.display = 'block';
 
   activeOrgSelect.innerHTML = orgIds.map(id =>
-    `<option value="${id}">${escapeHtml(userOrganizations[id].name)}</option>`
+    `<option value="${escapeHtml(id)}">${escapeHtml(userOrganizations[id].name)}</option>`
   ).join('');
 
   const updateOrgContext = (orgId) => {
@@ -268,209 +342,108 @@ async function initEmployeePortal() {
     userRoleDisplay.textContent = isAdmin ? 'Organization Admin' : 'Staff';
     navManageStaff.style.display = isAdmin ? 'inline-block' : 'none';
 
-    // An org can only belong to one hub, so creating one is only offered when it has none
-    const createHubSection = document.getElementById('create-hub-section');
-    if (createHubSection) {
-      createHubSection.style.display = isAdmin && !org.hubId ? 'block' : 'none';
-    }
+    document.getElementById('create-project-section').style.display = isAdmin ? 'block' : 'none';
+    showMessage('create-project-message', '');
 
-    const hubInfo = document.getElementById('hub-info');
-    const scopeContainer = document.getElementById('children-scope-container');
-    const scopeSelect = document.getElementById('children-scope');
-    if (hubInfo) {
-      hubInfo.textContent = org.hubId ? `Hub: ${org.hubName || ''}` : '';
-      hubInfo.style.display = org.hubId ? 'block' : 'none';
-    }
-    if (scopeContainer) scopeContainer.style.display = org.hubId ? 'block' : 'none';
-    if (scopeSelect) scopeSelect.value = 'org';
-
-    // If this org already has a hub, show the "add org" section
-    if (isAdmin && org.hubId) {
-      showAddOrgSection(org.hubId);
-    } else {
-      const addSection = document.getElementById('add-org-to-hub-section');
-      if (addSection) addSection.style.display = 'none';
-      currentHubId = null;
-    }
-
-    const feedingView = document.getElementById('feeding-scheme-view');
-    const defaultView = document.getElementById('default-org-view');
-
-    feedingView.style.display = 'none';
-    defaultView.style.display = 'none';
-
-    const orgType = (org.orgType || '').toUpperCase();
-
-    if (orgType === 'FEEDING_SCHEME') {
-      feedingView.style.display = 'block';
-      pageTitle.textContent = 'Feeding Scheme';
-      loadChildren(orgId);
-    } else {
-      defaultView.style.display = 'block';
-      pageTitle.textContent = 'Overview';
-    }
+    loadProjects(orgId);
+    loadPeople(orgId);
+    loadHub(org, orgId, isAdmin);
   };
 
   activeOrgSelect.addEventListener('change', (e) => updateOrgContext(e.target.value));
 
-  const childrenScope = document.getElementById('children-scope');
-  if (childrenScope) {
-    childrenScope.addEventListener('change', () => loadChildren(activeOrgSelect.value));
-  }
+  const activeOrgId = localStorage.getItem('activeOrgId');
+  const initialOrgId = orgIds.includes(activeOrgId) ? activeOrgId : orgIds[0];
+  activeOrgSelect.value = initialOrgId;
+  updateOrgContext(initialOrgId);
 
-  const activeOrgId = localStorage.getItem('activeOrgId') || orgIds[0];
-  activeOrgSelect.value = activeOrgId;
-  updateOrgContext(activeOrgId);
+  // Add project form
+  const projectForm = document.getElementById('create-project-form');
+  projectForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const orgId = activeOrgSelect.value;
 
-  // Add Child form
-  const form = document.getElementById('add-child-form');
-  if (form) {
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
+    const payload = {
+      name: document.getElementById('project-name').value.trim(),
+      projectType: document.getElementById('project-type').value,
+      description: document.getElementById('project-description').value.trim() || null
+    };
 
-      const orgId = activeOrgSelect.value;
-      const payload = {
-        name: document.getElementById('child-name').value.trim(),
-        surname: document.getElementById('child-surname').value.trim(),
-        gender: document.getElementById('child-gender').value || null,
-        school: document.getElementById('child-school').value.trim() || null
-      };
+    showMessage('create-project-message', 'Adding project…');
+    try {
+      await createProject(orgId, payload, await getAuthToken());
+      projectForm.reset();
+      showMessage('create-project-message', 'Project added.');
+      loadProjects(orgId);
+    } catch (err) {
+      console.error(err);
+      showMessage('create-project-message', err.message || 'Failed to add project');
+    }
+  });
 
-      const token = await getAuthToken();
-      if (!token) return;
-
-      try {
-        const res = await fetch(
-          `${window.VOUCHR_CONFIG.apiBaseUrl}/api/feeding-scheme/${orgId}/children`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(payload)
-          }
-        );
-
-        if (res.ok) {
-          form.reset();
-          loadChildren(orgId);
-          alert('Child added successfully');
-        } else {
-          const err = await res.json().catch(() => ({}));
-          alert(err.message || 'Failed to add child');
-        }
-      } catch (err) {
-        console.error(err);
-        alert('Network error');
-      }
-    });
-  }
+  // People & consent
+  document.getElementById('register-people-btn').addEventListener('click', () =>
+    startConsentFlow(activeOrgSelect.value));
+  document.getElementById('people-list').addEventListener('click', (e) =>
+    onPeopleAction(e, activeOrgSelect.value));
 
   // Create Hub form
   const createHubForm = document.getElementById('create-hub-form');
-  if (createHubForm) {
-    createHubForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
+  createHubForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
 
-      const orgId = activeOrgSelect.value;
-      if (!orgId) {
-        alert('No active organisation selected');
-        return;
-      }
+    const orgId = activeOrgSelect.value;
+    const payload = {
+      organizationId: orgId,
+      hubName: document.getElementById('hub-name').value.trim() || null,
+      city: document.getElementById('hub-city').value.trim() || null
+    };
 
-      const payload = {
-        organizationId: orgId,
-        hubName: document.getElementById('hub-name').value.trim() || null,
-        city: document.getElementById('hub-city').value.trim() || null
-      };
+    showMessage('create-hub-message', 'Creating hub…');
+    try {
+      const data = await createHub(payload, await getAuthToken());
+      createHubForm.reset();
+      showMessage('create-hub-message', '');
 
-      const messageEl = document.getElementById('create-hub-message');
-      messageEl.textContent = 'Creating hub…';
+      userOrganizations[orgId].hubId = data.hubId;
+      userOrganizations[orgId].hubName = data.hubName;
+      updateOrgContext(orgId);
+    } catch (err) {
+      console.error(err);
+      showMessage('create-hub-message', err.message || 'Failed to create hub');
+    }
+  });
 
-      try {
-        const data = await createHub(payload);
-        messageEl.textContent = `Hub “${data.hubName || payload.hubName || 'created'}” created successfully.`;
-        createHubForm.reset();
+  // Leave hub
+  document.getElementById('leave-hub-btn').addEventListener('click', async () => {
+    const orgId = activeOrgSelect.value;
+    const org = userOrganizations[orgId];
+    if (!org?.hubId) return;
 
-        // Persist hubId on the local user object so the add-org section appears
-        if (data.hubId && userOrganizations[orgId]) {
-          userOrganizations[orgId].hubId = data.hubId;
-          userOrganizations[orgId].hubName = data.hubName;
-          user.userOrganizations = userOrganizations;
-          localStorage.setItem('user', JSON.stringify(user));
-          updateOrgContext(orgId);
-        }
-      } catch (err) {
-        console.error(err);
-        messageEl.textContent = err.message || 'Failed to create hub';
-      }
-    });
-  }
+    if (!confirm(`Remove ${org.name} from the hub "${org.hubName}"? Projects will no longer be shared with it.`)) {
+      return;
+    }
+
+    try {
+      await leaveHub(org.hubId, orgId, await getAuthToken());
+      delete org.hubId;
+      delete org.hubName;
+      updateOrgContext(orgId);
+    } catch (err) {
+      console.error(err);
+      showMessage('hub-message', err.message || 'Failed to leave hub');
+    }
+  });
 
   setupOrgSearch();
-}
 
-async function loadChildren(orgId) {
-  const container = document.getElementById('children-list');
-  const token = await getAuthToken();
-  if (!token) return;
-
-  const showHub = document.getElementById('children-scope')?.value === 'hub';
-  const endpoint = showHub ? 'hub-children' : 'children';
-
-  try {
-    const res = await fetch(
-      `${window.VOUCHR_CONFIG.apiBaseUrl}/api/feeding-scheme/${orgId}/${endpoint}`,
-      {
-        headers: { 'Authorization': `Bearer ${token}` }
-      }
-    );
-
-    if (!res.ok) {
-      container.innerHTML = '<p class="muted">Failed to load children.</p>';
-      return;
-    }
-
-    const children = await res.json();
-
-    if (children.length === 0) {
-      container.innerHTML = '<p class="muted">No children added yet.</p>';
-      return;
-    }
-
-    container.innerHTML = `
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Surname</th>
-            <th>Gender</th>
-            <th>School</th>
-            <th>Organisation</th>
-            <th>Registered by</th>
-            <th>Added</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${children.map(c => `
-            <tr>
-              <td>${escapeHtml(c.name)}</td>
-              <td>${escapeHtml(c.surname)}</td>
-              <td>${escapeHtml(c.gender || '—')}</td>
-              <td>${escapeHtml(c.school || '—')}</td>
-              <td>${escapeHtml(c.organizationName || '—')}</td>
-              <td>${escapeHtml(c.registeredByName || '—')}</td>
-              <td>${c.createdDate ? new Date(c.createdDate).toLocaleDateString() : '—'}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    `;
-  } catch (err) {
-    console.error(err);
-    container.innerHTML = '<p class="muted">Error loading children.</p>';
-  }
+  // Platform admins (configured on the server) get a link to the platform settings
+  getAuthToken()
+    .then(token => getPlatformMe(token))
+    .then(me => {
+      if (me.platformAdmin) document.getElementById('nav-platform').style.display = 'inline-block';
+    })
+    .catch(err => console.error('Could not check platform admin status', err));
 }
 
 document.addEventListener('DOMContentLoaded', initEmployeePortal);

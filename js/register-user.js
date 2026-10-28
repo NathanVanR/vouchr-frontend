@@ -1,10 +1,11 @@
 import { registerStaff, registerRecipient } from './api.js';
-import { saveUserSession } from './utils.js';
+import { saveUserSession, normaliseStreetAddress, isValidStreetAddress, attachStreetAddressValidation, STREET_ADDRESS_MESSAGE } from './utils.js';
 import { supabase } from './supabase-client.js';
 
 const registerForm = document.getElementById("register-form");
 const roleInputs = document.querySelectorAll('input[name="role"]');
 const recipientFields = document.getElementById("recipient-fields");
+attachStreetAddressValidation(document.getElementById("street-address"));
 
 // Initialize intl-tel-input
 const phoneInput = document.getElementById("phone-number");
@@ -104,6 +105,16 @@ if (registerForm) {
     const selectedRole = document.querySelector('input[name="role"]:checked')?.value;
     const submitBtn = registerForm.querySelector('button[type="submit"]');
 
+    // check before an account is created, so an invalid address never leaves a half-registered user behind
+    if (selectedRole !== "staff") {
+      const streetInput = document.getElementById("street-address");
+      if (!isValidStreetAddress(streetInput.value)) {
+        streetInput.setCustomValidity(STREET_ADDRESS_MESSAGE);
+        streetInput.reportValidity();
+        return;
+      }
+    }
+
     submitBtn.disabled = true;
     submitBtn.textContent = "Creating account...";
 
@@ -173,8 +184,7 @@ if (registerForm) {
           address: {
             unitNumber: document.getElementById("unit-number")?.value.trim() || null,
             complexName: document.getElementById("complex-name")?.value.trim() || null,
-            streetNumber: document.getElementById("street-number").value.trim(),
-            streetName: document.getElementById("street-name").value.trim(),
+            streetAddress: normaliseStreetAddress(document.getElementById("street-address").value),
             suburb: document.getElementById("suburb").value.trim(),
             city: document.getElementById("city").value.trim(),
             province: document.getElementById("province").value.trim()

@@ -1,13 +1,22 @@
 // js/register-org.js
 import { createOrganization } from './api.js';
-import { getStoredUser, saveUserSession } from './utils.js';
+import { getStoredUser, saveUserSession, normaliseStreetAddress, isValidStreetAddress, attachStreetAddressValidation, STREET_ADDRESS_MESSAGE } from './utils.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('register-org-form');
   if (!form) return;
 
+  attachStreetAddressValidation(document.getElementById('org-street-address'));
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+
+    const streetInput = document.getElementById('org-street-address');
+    if (!isValidStreetAddress(streetInput.value)) {
+      streetInput.setCustomValidity(STREET_ADDRESS_MESSAGE);
+      streetInput.reportValidity();
+      return;
+    }
 
     const submitBtn = form.querySelector('button[type="submit"]');
     const originalText = submitBtn.textContent;
@@ -26,18 +35,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const unitNumber = formData.get('org-unit-number');
     const complexName = formData.get('org-complex-name');
-    const streetNumber = formData.get('org-street-number');
-    const streetName = formData.get('org-street-name');
+    const streetAddress = normaliseStreetAddress(formData.get('org-street-address'));
     const suburb = formData.get('org-suburb');
     const city = formData.get('org-city');
     const province = formData.get('org-province');
 
-    if (unitNumber || complexName || streetNumber || streetName || suburb || city || province) {
+    if (unitNumber || complexName || streetAddress || suburb || city || province) {
       payload.address = {
         unitNumber: unitNumber || null,
         complexName: complexName || null,
-        streetNumber: streetNumber || null,
-        streetName: streetName || null,
+        streetAddress: streetAddress || null,
         suburb: suburb || null,
         city: city || null,
         province: province || null
