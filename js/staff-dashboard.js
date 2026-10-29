@@ -303,6 +303,21 @@ async function addOrg(organizationId, button) {
   }
 }
 
+// ---------- views & header menu ----------
+const VIEWS = { projects: 'Projects', people: 'People', hubs: 'Hubs' };
+
+function showView() {
+  const name = VIEWS[location.hash.slice(1)] ? location.hash.slice(1) : 'projects';
+  document.querySelectorAll('.view').forEach(v => { v.hidden = v.id !== `view-${name}`; });
+  document.querySelectorAll('.view-tabs a').forEach(a => {
+    const active = a.dataset.view === name;
+    a.classList.toggle('active', active);
+    if (active) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  });
+  document.getElementById('page-title').textContent = VIEWS[name];
+  window.scrollTo(0, 0);
+}
+
 // ---------- main init ----------
 async function initEmployeePortal() {
   const portalContent = document.getElementById('org-portal-content');
@@ -314,6 +329,9 @@ async function initEmployeePortal() {
   const userRoleDisplay = document.getElementById('user-role-display');
   const navManageStaff = document.getElementById('nav-manage-staff');
   const orgEyebrow = document.getElementById('org-eyebrow');
+
+  showView();
+  window.addEventListener('hashchange', showView);
 
   const user = getStoredUser();
   if (!user) {

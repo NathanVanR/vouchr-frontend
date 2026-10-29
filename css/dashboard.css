@@ -256,17 +256,72 @@
   opacity: 1;
 }
 
-/* Optional: make it feel more “pill-like” on larger screens
-@media (min-width: 640px) {
-  .org-select {
-    border-radius: 9999px;
-    padding-left: 1rem;
-    padding-right: 2.25rem;
-  } */
-  
-  .org-select-wrapper::after {
-    right: 14px;
-  }
+.org-select-wrapper::after {
+  right: 14px;
+}
+
+/* ===== Staff dashboard: header menu & view tabs ===== */
+.nav-menu {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.nav-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  color: var(--text);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nav-menu-btn:hover {
+  background: var(--surface-secondary);
+}
+
+.view[hidden] {
+  display: none;
+}
+
+.view-tabs {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+}
+
+.view-tabs a {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.view-tabs a svg {
+  display: none;
+}
+
+.view-tabs a:hover {
+  background: var(--surface-secondary);
+}
+
+.view-tabs a.active {
+  background: var(--black);
+  color: var(--white);
 }
 
 @media (max-width: 800px) {
@@ -289,6 +344,157 @@
     gap: 0.25rem;
   }
 }
+
+/* ===== Phone: compact header, menu sheet, bottom tab bar ===== */
+@media (max-width: 640px) {
+  .site-header .container {
+    padding: 0 1rem;
+  }
+
+  .site-header .nav-user {
+    flex: 1;
+    min-width: 0;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-left: 0.75rem;
+  }
+
+  .org-switcher-wrapper {
+    flex: 1;
+    min-width: 0;
+    margin-right: 0;
+  }
+
+  .org-switcher-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .org-select-wrapper {
+    min-width: 0;
+  }
+
+  .org-select {
+    min-height: 44px;
+    font-size: 1rem;
+    text-overflow: ellipsis;
+  }
+
+  .nav-menu-btn {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  .nav-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 0.5rem 1rem 1rem;
+    background: var(--canvas);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow-soft);
+    overscroll-behavior: contain;
+  }
+
+  .nav-menu.open {
+    display: flex;
+  }
+
+  .nav-menu .user-label {
+    padding: 0.5rem 0;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-menu .text-link {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 48px;
+    font-size: 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .nav-menu .text-link:last-child {
+    border-bottom: none;
+  }
+
+  #nav-create-org {
+    opacity: 1;
+    font-size: 1rem;
+  }
+
+  .dashboard {
+    padding: 1.5rem 0 calc(5.5rem + env(safe-area-inset-bottom));
+  }
+
+  .page-header {
+    margin-bottom: 1.25rem;
+  }
+
+  .page-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .view-tabs {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    margin: 0;
+    gap: 0;
+    overflow: visible;
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--canvas);
+    border-top: 1px solid var(--border);
+  }
+
+  .view-tabs a {
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.2rem;
+    min-height: 56px;
+    padding: 0.4rem 0.25rem;
+    border-radius: 0;
+    font-size: 0.6875rem;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .view-tabs a svg {
+    display: block;
+  }
+
+  .view-tabs a:hover {
+    background: none;
+  }
+
+  .view-tabs a.active {
+    background: none;
+    color: var(--accent);
+  }
+
+  /* 16px inputs stop iOS zooming the page on focus */
+  input,
+  select,
+  textarea {
+    font-size: 1rem;
+  }
+}
+
 /* Projects */
 .project-grid {
   display: grid;

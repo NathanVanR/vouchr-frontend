@@ -65,6 +65,26 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
+// Phone header menu: toggles #nav-menu from #nav-menu-btn on any page that has them
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("nav-menu-btn");
+  const menu = document.getElementById("nav-menu");
+  if (!btn || !menu) return;
+
+  const setOpen = (open) => {
+    menu.classList.toggle("open", open);
+    btn.setAttribute("aria-expanded", String(open));
+  };
+
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setOpen(!menu.classList.contains("open"));
+  });
+  menu.addEventListener("click", () => setOpen(false));
+  document.addEventListener("click", () => setOpen(false));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+});
+
 // ---- Street address: one field with a number and a name, e.g. "12 Mandela Way" ----
 // Same rule as the backend (util/StreetAddress.java).
 export const STREET_ADDRESS_MESSAGE =
