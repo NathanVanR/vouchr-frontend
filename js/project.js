@@ -18,7 +18,10 @@ const projectId = new URLSearchParams(window.location.search).get('id');
 let project = null;
 let enrolled = [];
 
-const CONSENT_LABELS = { VALID: 'Consent signed', MISSING: 'No consent', WITHDRAWN: 'Consent withdrawn' };
+const CONSENT_LABELS = {
+  VALID: 'Consent signed', MISSING: 'No consent', WITHDRAWN: 'Consent withdrawn',
+  NEEDS_OWN_CONSENT: 'Needs own consent'
+};
 
 function show(id, visible) {
   document.getElementById(id).hidden = !visible;

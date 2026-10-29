@@ -4,7 +4,7 @@ import {
   getHub, getHubProjects, leaveHub, searchHubOrgs, addOrgToHub,
   getPeople, withdrawConsent, getPlatformMe
 } from './api.js';
-import { getAuthToken, escapeHtml, PROJECT_TYPE_LABELS } from './session.js';
+import { getAuthToken, escapeHtml, PROJECT_TYPE_LABELS, RELATIONSHIP_LABELS } from './session.js';
 import { openConsentFlow, openConsentPdf } from './consent.js';
 
 // ---------- Projects ----------
@@ -48,8 +48,40 @@ let currentPeople = [];
 const CONSENT_BADGES = {
   VALID: '<span class="badge badge-active">Consent signed</span>',
   MISSING: '<span class="badge badge-expired">No consent</span>',
-  WITHDRAWN: '<span class="badge badge-expired">Withdrawn</span>'
+  WITHDRAWN: '<span class="badge badge-expired">Withdrawn</span>',
+  NEEDS_OWN_CONSENT: '<span class="badge badge-expired">Needs own consent</span>'
 };
+
+const AGE_LABELS = { ADULT: 'Adult', CHILD: 'Child', UNKNOWN: 'Age unknown' };
+
+/** Primary adults first (A-Z), each followed by the dependents registered under them. */
+function familyOrder(people) {
+  const ids = new Set(people.map(p => p.personId));
+  const dependentsOf = new Map();
+  people.filter(p => p.primaryPersonId && ids.has(p.primaryPersonId)).forEach(p => {
+    if (!dependentsOf.has(p.primaryPersonId)) dependentsOf.set(p.primaryPersonId, []);
+    dependentsOf.get(p.primaryPersonId).push(p);
+  });
+  const heads = people.filter(p => !p.primaryPersonId || !ids.has(p.primaryPersonId));
+  return heads.flatMap(h => [{ person: h, dependent: false }, ...(dependentsOf.get(h.personId) || []).map(d => ({ person: d, dependent: true }))]);
+}
+
+function personActions(p) {
+  const buttons = [];
+  if (p.consentStatus === 'VALID' || p.consentStatus === 'WITHDRAWN') {
+    buttons.push(`<button type="button" class="text-link" data-action="view" data-consent="${escapeHtml(p.consentId)}">View signed copy</button>`);
+  }
+  if (p.consentStatus === 'VALID') {
+    buttons.push(`<button type="button" class="text-link" data-action="withdraw" data-consent="${escapeHtml(p.consentId)}">Withdraw</button>`);
+  }
+  if (p.ageGroup !== 'CHILD') {
+    // adults sign for themselves; someone who already has a consent can sign again to cover new children
+    buttons.push(p.consentStatus === 'VALID'
+      ? `<button type="button" class="text-link" data-action="capture" data-person="${escapeHtml(p.personId)}">Add children</button>`
+      : `<button type="button" class="text-link" data-action="capture" data-person="${escapeHtml(p.personId)}">Capture consent</button>`);
+  }
+  return buttons.join('');
+}
 
 async function loadPeople(orgId) {
   const container = document.getElementById('people-list');
@@ -69,29 +101,26 @@ async function loadPeople(orgId) {
     return;
   }
 
+  const nameOf = (id) => {
+    const p = currentPeople.find(x => x.personId === id);
+    return p ? `${p.name} ${p.surname}` : '';
+  };
+
   container.innerHTML = `
     <div class="table-wrap">
       <table class="data-table">
         <thead>
-          <tr><th>Name</th><th>Surname</th><th>Gender</th><th>Consent</th><th>Shared with partner orgs</th><th></th></tr>
+          <tr><th>Name</th><th>Age group</th><th>Relationship</th><th>Consent</th><th>Shared with partner orgs</th><th></th></tr>
         </thead>
         <tbody>
-          ${currentPeople.map(p => `
-            <tr>
-              <td>${escapeHtml(p.name)}</td>
-              <td>${escapeHtml(p.surname)}</td>
-              <td>${escapeHtml(p.gender || '—')}</td>
+          ${familyOrder(currentPeople).map(({ person: p, dependent }) => `
+            <tr class="${dependent ? 'person-dependent' : ''}">
+              <td>${dependent ? '<span class="dependent-indent">↳</span> ' : ''}${escapeHtml(p.name)} ${escapeHtml(p.surname)}</td>
+              <td>${AGE_LABELS[p.ageGroup] || escapeHtml(p.ageGroup)}</td>
+              <td>${p.relationship ? `${escapeHtml(RELATIONSHIP_LABELS[p.relationship] || p.relationship)} of ${escapeHtml(nameOf(p.primaryPersonId))}` : '—'}</td>
               <td>${CONSENT_BADGES[p.consentStatus] || escapeHtml(p.consentStatus)}</td>
               <td>${p.consentStatus === 'VALID' ? (p.sharesWithPartners ? 'Yes' : 'No') : '—'}</td>
-              <td class="table-actions">
-                ${p.consentStatus === 'VALID' ? `
-                  <button type="button" class="text-link" data-action="view" data-consent="${escapeHtml(p.consentId)}">View signed copy</button>
-                  <button type="button" class="text-link" data-action="withdraw" data-consent="${escapeHtml(p.consentId)}">Withdraw</button>` : ''}
-                ${p.consentStatus === 'WITHDRAWN' ? `
-                  <button type="button" class="text-link" data-action="view" data-consent="${escapeHtml(p.consentId)}">View signed copy</button>` : ''}
-                ${p.consentStatus !== 'VALID' ? `
-                  <button type="button" class="text-link" data-action="capture" data-person="${escapeHtml(p.personId)}">Capture consent</button>` : ''}
-              </td>
+              <td class="table-actions">${personActions(p)}</td>
             </tr>`).join('')}
         </tbody>
       </table>
@@ -105,10 +134,13 @@ async function onPeopleAction(e, orgId) {
   if (button.dataset.action === 'view') {
     openConsentPdf(button.dataset.consent);
   } else if (button.dataset.action === 'capture') {
-    startConsentFlow(orgId, [button.dataset.person]);
+    startConsentFlow(orgId, button.dataset.person);
   } else if (button.dataset.action === 'withdraw') {
-    const reason = prompt('Withdraw this consent? Everyone covered by it will no longer be able to be enrolled, and '
-      + 'will be hidden from partner organisations.\n\nReason (optional):');
+    // one consent can cover a guardian and their children, and withdrawing it withdraws it for all of them
+    const covered = currentPeople.filter(p => p.consentId === button.dataset.consent).map(p => `${p.name} ${p.surname}`);
+    const reason = prompt(`Withdraw this consent? It covers: ${covered.join(', ')}.\n\n`
+      + 'None of them can be enrolled in a project any more, and they will be hidden from partner organizations.\n\n'
+      + 'Reason (optional):');
     if (reason === null) return;
     try {
       await withdrawConsent(button.dataset.consent, reason.trim(), await getAuthToken());
@@ -121,11 +153,11 @@ async function onPeopleAction(e, orgId) {
   }
 }
 
-function startConsentFlow(orgId, preselectIds = []) {
+function startConsentFlow(orgId, signerPersonId = null) {
   openConsentFlow({
     orgId,
     people: currentPeople,
-    preselectIds,
+    signerPersonId,
     onDone: () => {
       showMessage('people-message', 'Consent saved.');
       loadPeople(orgId);

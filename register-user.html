@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Create account</title>
+  <title>Create staff account</title>
   <link rel="stylesheet" href="css/main.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@24.5.0/build/css/intlTelInput.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,30 +22,10 @@
 
   <main class="auth-page">
     <div class="auth-card">
-      <h1>Create your account</h1>
-      <p class="muted">Join as a recipient or organization staff member.</p>
-      
-      <form id="register-form" class="auth-form">
-        <div class="form-group">
-          <label>I am registering as</label>
-          <div class="role-selector">
-            <label class="role-option">
-              <input type="radio" name="role" value="recipient" checked>
-              <span class="role-card">
-                <strong>Recipient</strong>
-                <small>I receive and redeem vouchers</small>
-              </span>
-            </label>
-            <label class="role-option">
-              <input type="radio" name="role" value="staff">
-              <span class="role-card">
-                <strong>Organization staff</strong>
-                <small>I manage vouchers for an existing organization</small>
-              </span>
-            </label>
-          </div>
-        </div>
+      <h1>Create your staff account</h1>
+      <p class="muted">For people who work or volunteer at an organization. People who receive help do not need an account: staff register them inside their organization.</p>
 
+      <form id="register-form" class="auth-form">
         <div class="form-group">
           <label for="first-name">First name</label>
           <input type="text" id="first-name" name="first-name" placeholder="First name" required autocomplete="given-name">
@@ -82,56 +62,6 @@
           </div>
         </div>
 
-        <div id="recipient-fields">
-          <div class="form-group">
-            <label for="sa-id">SA ID number</label>
-            <input type="text" id="sa-id" name="sa-id" placeholder="13-digit ID number" pattern="[0-9]{13}">
-          </div>
-
-          <div class="form-group">
-            <label for="unit-number">Unit number <small class="muted">(Optional)</small></label>
-            <input type="text" id="unit-number" name="unit-number" placeholder="Unit 12 / Flat B">
-          </div>
-          
-          <div class="form-group">
-            <label for="complex-name">Complex / Building <small class="muted">(Optional)</small></label>
-            <input type="text" id="complex-name" name="complex-name" placeholder="Oakridge Manor">
-          </div>
-
-          <div class="form-group">
-            <label for="street-address">Street address</label>
-            <input type="text" id="street-address" name="street-address" placeholder="12 Main Street"
-                   maxlength="255" autocomplete="address-line1">
-            <small class="muted">Street number and street name, for example 12 Main Street.</small>
-          </div>
-
-          <div class="form-group">
-            <label for="suburb">Suburb</label>
-            <input type="text" id="suburb" name="suburb" placeholder="Suburb">
-          </div>
-          
-          <div class="form-group">
-            <label for="city">City</label>
-            <input type="text" id="city" name="city" placeholder="City" autocomplete="address-level2">
-          </div>
-
-          <div class="form-group">
-            <label for="province">Province</label>
-            <input type="text" id="province" name="province" placeholder="Gauteng" autocomplete="address-level1">
-          </div>
-
-          <div class="form-section" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #eaeaea;">
-            <h3 style="margin-bottom: 0.5rem;">Dependents (Optional)</h3>
-            <p class="muted small" style="margin-bottom: 1rem;">Add children who will share your address and contact details.</p>
-            
-            <div id="dependents-list"></div>
-            
-            <button type="button" id="add-dependent-btn" class="btn btn-secondary" style="margin-bottom: 1rem;">
-              + Add Dependent
-            </button>
-          </div>
-        </div>
-        
         <button type="submit" class="btn btn-primary btn-full">Create account</button>
       </form>
 

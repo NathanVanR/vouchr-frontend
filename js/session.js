@@ -47,3 +47,20 @@ export const PROJECT_TYPE_LABELS = {
   SCHOOL_SUPPLIES_DRIVE: 'School supplies drive',
   OTHER: 'Other'
 };
+
+/** Relationship of a dependent to the adult they are registered under (matches the backend Relationship enum). */
+export const RELATIONSHIP_OPTIONS = [
+  ["CHILD", "Child"],
+  ["STEPCHILD", "Stepchild"],
+  ["FOSTER_CHILD", "Foster child"],
+  ["GRANDCHILD", "Grandchild"],
+  ["SIBLING", "Sibling"],
+  ["NIECE_NEPHEW", "Niece / nephew"],
+  ["SPOUSE_PARTNER", "Spouse / partner"],
+  ["PARENT", "Parent"],
+  ["OTHER_RELATIVE", "Other relative"],
+  ["OTHER", "Other"]
+];
+
+export const RELATIONSHIP_LABELS = Object.fromEntries(RELATIONSHIP_OPTIONS);
+

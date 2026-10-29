@@ -52,11 +52,10 @@ if (loginForm) {
         role: profile.role.toLowerCase()
       });
 
-      if (profile.role === 'STAFF') {
-        window.location.href = 'staff-dashboard.html';
-      } else {
-        window.location.href = 'recipient-dashboard.html';
+      if (profile.role !== 'STAFF') {
+        throw new Error('This account is not a staff account.');
       }
+      window.location.href = 'staff-dashboard.html';
 
     } catch (err) {
       console.error('Login error:', err);

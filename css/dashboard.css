@@ -436,3 +436,51 @@
 .consent-category .consent-check {
   margin-top: 0.25rem;
 }
+
+/* Registration + consent flow additions */
+.consent-mode {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.dependent-row {
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-secondary);
+}
+
+.consent-choices {
+  margin-top: 1.25rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.consent-choice + .consent-choice {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.consent-final {
+  margin-top: 1.25rem;
+  padding: 1rem 1.25rem;
+  border: 2px solid var(--text-muted);
+  border-radius: var(--radius-lg);
+}
+
+.consent-check-final {
+  font-weight: 500;
+}
+
+.person-dependent td:first-child {
+  padding-left: 2rem;
+}
+
+.dependent-indent {
+  color: var(--text-muted);
+}

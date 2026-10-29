@@ -45,19 +45,6 @@ export async function registerStaff(payload, token) {
   });
 }
 
-export async function registerRecipient(payload, token) {
-  return request("/api/users/recipient", {
-    method: "POST",
-    body: JSON.stringify(payload),
-    token                               // ← pass the fresh JWT
-  });
-}
-
-// ... rest of the file stays the same
-export async function getRecipientVouchers(recipientId) {
-  return request(`/api/vouchers/recipient/${recipientId}`);
-}
-
 export async function createOrganization(payload) {
   return request("/api/organization", {
     method: "POST",

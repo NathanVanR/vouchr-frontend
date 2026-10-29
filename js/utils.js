@@ -105,3 +105,54 @@ export function attachStreetAddressValidation(input) {
   check();
 }
 
+// ---- South African ID numbers and ages (same rules as the backend: util/SaIdNumber.java, Person.java) ----
+export const AGE_OF_MAJORITY = 18;
+
+export function isValidSaId(id) {
+  if (!/^\d{13}$/.test(id || "")) return false;
+  const yy = Number(id.slice(0, 2));
+  const mm = Number(id.slice(2, 4));
+  const dd = Number(id.slice(4, 6));
+  const realDate = (year) => {
+    const d = new Date(Date.UTC(year, mm - 1, dd));
+    return d.getUTCFullYear() === year && d.getUTCMonth() === mm - 1 && d.getUTCDate() === dd;
+  };
+  if (!realDate(1900 + yy) && !realDate(2000 + yy)) return false;
+  if (id[10] !== "0" && id[10] !== "1") return false; // citizen / permanent resident
+
+  let sum = 0;
+  let double = false;
+  for (let i = id.length - 1; i >= 0; i--) {
+    let d = Number(id[i]);
+    if (double) {
+      d *= 2;
+      if (d > 9) d -= 9;
+    }
+    sum += d;
+    double = !double;
+  }
+  return sum % 10 === 0;
+}
+
+/** YYYY-MM-DD from a valid SA ID; the century is the latest one that is not in the future. Staff can correct it. */
+export function dateOfBirthFromSaId(id) {
+  if (!isValidSaId(id)) return null;
+  const yy = Number(id.slice(0, 2));
+  const year = 2000 + yy <= new Date().getFullYear() ? 2000 + yy : 1900 + yy;
+  return `${year}-${id.slice(2, 4)}-${id.slice(4, 6)}`;
+}
+
+/** The YYMMDD part of the ID must match the date of birth (the century is not compared). */
+export function dateOfBirthMatchesId(dob, id) {
+  return !!dob && !!id && dob.slice(2, 4) === id.slice(0, 2) && dob.slice(5, 7) === id.slice(2, 4)
+    && dob.slice(8, 10) === id.slice(4, 6);
+}
+
+/** Whole years between a YYYY-MM-DD date of birth and today. */
+export function ageOn(dob, today = new Date()) {
+  const [y, m, d] = dob.split("-").map(Number);
+  let age = today.getFullYear() - y;
+  if (today.getMonth() + 1 < m || (today.getMonth() + 1 === m && today.getDate() < d)) age--;
+  return age;
+}
+
