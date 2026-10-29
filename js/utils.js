@@ -1,4 +1,11 @@
 //js/utils.js
+import { demoUserOrganizations } from './demo-data.js';
+
+/** Demo mode (set by demo.html): dummy data, no auth, no network. Per tab, so a real login is never touched. */
+export function isDemo() {
+  try { return sessionStorage.getItem("vouchrDemo") === "1"; } catch { return false; }
+}
+
 export function formatCurrency(amount) {
   return `R ${(amount || 0).toLocaleString("en-ZA")}`;
 }
@@ -13,6 +20,16 @@ export function formatDate(dateString) {
 }
 
 export function getStoredUser() {
+  if (isDemo()) {
+    return {
+      userId: "demo-user",
+      authUserId: "demo-user",
+      authToken: "demo-token",
+      userRole: "STAFF",
+      activeOrgId: localStorage.getItem("activeOrgId"),
+      userOrganizations: demoUserOrganizations()
+    };
+  }
   return {
     userId: localStorage.getItem("userId"),
     authUserId: localStorage.getItem("authUserId"),
@@ -41,6 +58,10 @@ export function clearUserSession() {
 }
 
 export function performLogout() {
+  if (isDemo()) {
+    exitDemo();
+    return;
+  }
   // localStorage.removeItem("user");
   // localStorage.removeItem("activeOrgId");
   // localStorage.removeItem("accessToken"); 
@@ -51,6 +72,34 @@ export function performLogout() {
   // Redirect back to the home or login page
   window.location.href = "index.html"; // Adjust to your actual login/home page URL
 }
+
+/** Leaves demo mode without touching the real localStorage session, and returns to the home page. */
+export function exitDemo() {
+  try {
+    sessionStorage.removeItem("vouchrDemo");
+    sessionStorage.removeItem("vouchrDemoState");
+  } catch { /* nothing to clear */ }
+  window.location.href = "index.html";
+}
+
+// Demo banner on every page, and the screens that need a real account are switched off
+document.addEventListener("DOMContentLoaded", () => {
+  if (!isDemo()) return;
+
+  const banner = document.createElement("div");
+  banner.className = "demo-banner";
+  banner.innerHTML = `<span><strong>Demo mode</strong> · sample data only, nothing is saved.</span>
+    <button type="button" class="demo-banner-exit">Exit demo</button>`;
+  banner.querySelector("button").addEventListener("click", exitDemo);
+  document.body.prepend(banner);
+
+  document.querySelectorAll('a[href="register-org.html"]').forEach(link => {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      alert("Creating an organisation is not available in the demo.");
+    });
+  });
+});
 
 // Automatically attach the logout event to any button with the ID "logout-btn"
 document.addEventListener("DOMContentLoaded", () => {

@@ -286,3 +286,33 @@ select option[value=""][disabled] {
 .role-option:hover .role-card {
   border-color: var(--text-secondary);
 }
+/* ===== Demo mode ===== */
+.demo-cta {
+  text-align: center;
+}
+
+.demo-cta .lead {
+  margin-bottom: 1.5rem;
+}
+
+.demo-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 1rem;
+  background: var(--text);
+  color: var(--canvas);
+  font-size: 0.875rem;
+}
+
+.demo-banner-exit {
+  background: none;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0.125rem 0.75rem;
+}

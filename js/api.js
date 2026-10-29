@@ -1,5 +1,6 @@
 //js/api.js
-import { getStoredUser } from './utils.js';
+import { getStoredUser, isDemo } from './utils.js';
+import { demoRequest, demoConsentPdf } from './demo-data.js';
 
 if (!window.VOUCHR_CONFIG) {
   throw new Error('VOUCHR_CONFIG is missing. Load js/config.js before any module scripts.');
@@ -8,6 +9,8 @@ if (!window.VOUCHR_CONFIG) {
 const API_BASE_URL = window.VOUCHR_CONFIG.apiBaseUrl;
 
 async function request(endpoint, options = {}) {
+  if (isDemo()) return demoRequest(endpoint, options);
+
   // Prefer an explicitly passed token (used during registration),
   // otherwise fall back to the stored session token.
   const explicitToken = options.token;
@@ -159,6 +162,7 @@ export async function withdrawConsent(consentId, reason, token) {
 
 // The sealed PDF is binary, so it bypasses request() and returns a Blob.
 export async function fetchConsentPdf(consentId, token) {
+  if (isDemo()) return demoConsentPdf();
   const response = await fetch(`${API_BASE_URL}/api/consents/${consentId}/pdf`, {
     headers: { Authorization: `Bearer ${token}` }
   });

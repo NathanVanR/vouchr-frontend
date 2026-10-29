@@ -1,4 +1,4 @@
-import { getStoredUser } from './utils.js';
+import { getStoredUser, isDemo } from './utils.js';
 import {
   createHub, createProject, getProjects,
   getHub, getHubProjects, leaveHub, searchHubOrgs, addOrgToHub,
@@ -343,7 +343,7 @@ async function initEmployeePortal() {
 
   try {
     const token = await getAuthToken();
-    if (token) {
+    if (token && !isDemo()) {
       const response = await fetch(`${window.VOUCHR_CONFIG.apiBaseUrl}/api/users/me`, {
         headers: {
           'Content-Type': 'application/json',

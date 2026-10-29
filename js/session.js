@@ -1,4 +1,5 @@
 // js/session.js — helpers shared by the staff dashboard and project pages
+import { isDemo } from './utils.js';
 
 export function getSupabaseClient() {
   if (window._supabaseClient) return window._supabaseClient;
@@ -26,6 +27,7 @@ export function getSupabaseClient() {
 
 /** Fresh access token from the current Supabase session (the stored one may have expired). */
 export async function getAuthToken() {
+  if (isDemo()) return 'demo-token';
   const client = getSupabaseClient();
   if (!client) return null;
   const { data: { session } } = await client.auth.getSession();

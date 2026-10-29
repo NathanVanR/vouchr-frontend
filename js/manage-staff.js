@@ -1,5 +1,5 @@
 import { addStaff } from './api.js';
-import { getStoredUser } from './utils.js';
+import { getStoredUser, isDemo } from './utils.js';
 
 function getSupabaseClient() {
   if (window._supabaseClient) return window._supabaseClient;
@@ -52,7 +52,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Fetch fresh user & org data from API
   try {
-    const supabaseClient = getSupabaseClient();
+    const supabaseClient = isDemo() ? null : getSupabaseClient();
     if (supabaseClient) {
       const { data: { session } } = await supabaseClient.auth.getSession();
       const token = session?.access_token;

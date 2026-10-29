@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vouchr demo</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+  <main class="hero">
+    <div class="container">
+      <p class="muted">Starting the demo…</p>
+      <p class="muted"><a href="index.html">Back to home</a></p>
+    </div>
+  </main>
+
+  <script type="module">
+    import { clearDemoState } from './js/demo-data.js';
+
+    // Fresh sample data every time the demo is started; the flag lives in sessionStorage so it is per tab
+    // and never touches a real login in localStorage.
+    clearDemoState();
+    sessionStorage.setItem('vouchrDemo', '1');
+    window.location.replace('staff-dashboard.html');
+  </script>
+</body>
+</html>
