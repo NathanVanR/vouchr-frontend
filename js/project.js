@@ -152,6 +152,7 @@ async function init() {
   renderHeader();
   await loadBeneficiaries();
 
+  document.getElementById('enrol-person').addEventListener('change', prefillFromPerson);
   document.getElementById('visibility-select').addEventListener('change', (e) =>
     saveSettings({ visibility: e.target.value }));
   document.getElementById('status-select').addEventListener('change', (e) =>
@@ -189,23 +190,40 @@ async function init() {
   });
 }
 
+let enrolPeople = [];
+
 /** People with a valid consent who are not already in this project. */
 async function loadEnrolOptions() {
   const select = document.getElementById('enrol-person');
+  const hint = document.getElementById('enrol-hint');
   try {
     const people = await getPeople(project.organizationId, await getAuthToken());
     const already = new Set(enrolled.map(b => b.personId));
-    const available = people.filter(p => p.consentStatus === 'VALID' && !already.has(p.personId));
+    enrolPeople = people.filter(p => p.consentStatus === 'VALID' && !already.has(p.personId));
+    const waiting = people.filter(p => p.consentStatus !== 'VALID');
 
-    select.innerHTML = available.length
-      ? available.map(p => `<option value="${escapeHtml(p.personId)}">${escapeHtml(p.name)} ${escapeHtml(p.surname)}</option>`).join('')
+    select.innerHTML = enrolPeople.length
+      ? enrolPeople.map(p => `<option value="${escapeHtml(p.personId)}">${escapeHtml(p.name)} ${escapeHtml(p.surname)}</option>`).join('')
       : '<option value="" disabled selected>Everyone with a consent is already enrolled</option>';
-    select.disabled = !available.length;
+    select.disabled = !enrolPeople.length;
+    prefillFromPerson();
+
+    hint.textContent = waiting.length
+      ? `${waiting.length} ${waiting.length === 1 ? 'person has' : 'people have'} no valid consent yet and cannot be enrolled: `
+        + waiting.slice(0, 5).map(p => `${p.name} ${p.surname}`).join(', ') + (waiting.length > 5 ? ', …' : '') + '.'
+      : '';
   } catch (err) {
     console.error(err);
     select.innerHTML = `<option value="" disabled selected>${escapeHtml(err.message || 'Could not load people')}</option>`;
     select.disabled = true;
   }
+}
+
+/** A child's school is already on file, so start the project's school field from it. */
+function prefillFromPerson() {
+  const person = enrolPeople.find(p => p.personId === document.getElementById('enrol-person').value);
+  const school = document.getElementById('attr-school');
+  if (school && person) school.value = person.school || '';
 }
 
 document.addEventListener('DOMContentLoaded', init);

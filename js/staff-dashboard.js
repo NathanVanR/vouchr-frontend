@@ -6,6 +6,8 @@ import {
 } from './api.js';
 import { getAuthToken, escapeHtml, PROJECT_TYPE_LABELS, RELATIONSHIP_LABELS } from './session.js';
 import { openConsentFlow, openConsentPdf } from './consent.js';
+import { openPersonForm } from './person-form.js';
+import { initFamilies, loadFamilies } from './families.js';
 
 // ---------- Projects ----------
 
@@ -47,12 +49,17 @@ let currentPeople = [];
 
 const CONSENT_BADGES = {
   VALID: '<span class="badge badge-active">Consent signed</span>',
-  MISSING: '<span class="badge badge-expired">No consent</span>',
+  MISSING: '<span class="badge badge-expired">No consent yet</span>',
   WITHDRAWN: '<span class="badge badge-expired">Withdrawn</span>',
   NEEDS_OWN_CONSENT: '<span class="badge badge-expired">Needs own consent</span>'
 };
 
 const AGE_LABELS = { ADULT: 'Adult', CHILD: 'Child', UNKNOWN: 'Age unknown' };
+
+const FIELD_LABELS = {
+  gender: 'gender', dateOfBirth: 'date of birth', idNumber: 'ID number', phoneNumber: 'phone',
+  address: 'address', school: 'school'
+};
 
 /** Primary adults first (A-Z), each followed by the dependents registered under them. */
 function familyOrder(people) {
@@ -67,23 +74,32 @@ function familyOrder(people) {
 }
 
 function personActions(p) {
-  const buttons = [];
-  if (p.consentStatus === 'VALID' || p.consentStatus === 'WITHDRAWN') {
-    buttons.push(`<button type="button" class="text-link" data-action="view" data-consent="${escapeHtml(p.consentId)}">View signed copy</button>`);
-  }
+  const id = escapeHtml(p.personId);
+  const buttons = [`<button type="button" class="text-link" data-action="edit" data-person="${id}">Edit</button>`];
   if (p.consentStatus === 'VALID') {
-    buttons.push(`<button type="button" class="text-link" data-action="withdraw" data-consent="${escapeHtml(p.consentId)}">Withdraw</button>`);
+    // no signed copy once withdrawn: the record stays in the database as the audit trail
+    buttons.push(`<button type="button" class="text-link" data-action="view" data-consent="${escapeHtml(p.consentId)}">View signed copy</button>`);
+    buttons.push(`<button type="button" class="text-link is-danger" data-action="withdraw" data-consent="${escapeHtml(p.consentId)}">Withdraw</button>`);
   }
-  if (p.ageGroup !== 'CHILD') {
-    // adults sign for themselves; someone who already has a consent can sign again to cover new children
+  if (p.ageGroup === 'CHILD') {
+    // a child is covered by an adult's signature (a registered parent, or a guardian entered while signing)
+    if (p.consentStatus !== 'VALID') {
+      buttons.push(`<button type="button" class="text-link" data-action="capture-child" data-person="${id}">Capture consent</button>`);
+    }
+  } else {
+    // adults sign for themselves; someone who already has a consent can sign again to cover more children
     buttons.push(p.consentStatus === 'VALID'
-      ? `<button type="button" class="text-link" data-action="capture" data-person="${escapeHtml(p.personId)}">Add children</button>`
-      : `<button type="button" class="text-link" data-action="capture" data-person="${escapeHtml(p.personId)}">Capture consent</button>`);
+      ? `<button type="button" class="text-link" data-action="capture" data-person="${id}">Add children</button>`
+      : `<button type="button" class="text-link" data-action="capture" data-person="${id}">Capture consent</button>`);
   }
   return buttons.join('');
 }
 
-async function loadPeople(orgId) {
+export function getCurrentPeople() {
+  return currentPeople;
+}
+
+export async function loadPeople(orgId) {
   const container = document.getElementById('people-list');
   container.innerHTML = '<p class="muted">Loading…</p>';
 
@@ -97,7 +113,7 @@ async function loadPeople(orgId) {
   }
 
   if (!currentPeople.length) {
-    container.innerHTML = '<p class="muted">Nobody is registered yet.</p>';
+    container.innerHTML = '<p class="muted">Nobody has been added yet.</p>';
     return;
   }
 
@@ -110,31 +126,38 @@ async function loadPeople(orgId) {
     <div class="table-wrap">
       <table class="data-table">
         <thead>
-          <tr><th>Name</th><th>Age group</th><th>Relationship</th><th>Consent</th><th>Shared with partner orgs</th><th></th></tr>
+          <tr><th>Name</th><th>Age group</th><th>Registered under</th><th>Consent</th><th>Not on file yet</th><th>Shared with partner orgs</th><th></th></tr>
         </thead>
         <tbody>
           ${familyOrder(currentPeople).map(({ person: p, dependent }) => `
             <tr class="${dependent ? 'person-dependent' : ''}">
               <td>${dependent ? '<span class="dependent-indent">↳</span> ' : ''}${escapeHtml(p.name)} ${escapeHtml(p.surname)}</td>
-              <td>${AGE_LABELS[p.ageGroup] || escapeHtml(p.ageGroup)}</td>
+              <td>${AGE_LABELS[p.ageGroup] || escapeHtml(p.ageGroup)}${p.school ? `<br><span class="muted">${escapeHtml(p.school)}</span>` : ''}</td>
               <td>${p.relationship ? `${escapeHtml(RELATIONSHIP_LABELS[p.relationship] || p.relationship)} of ${escapeHtml(nameOf(p.primaryPersonId))}` : '—'}</td>
               <td>${CONSENT_BADGES[p.consentStatus] || escapeHtml(p.consentStatus)}</td>
+              <td class="muted">${(p.missingFields || []).length
+                ? escapeHtml(p.missingFields.map(f => FIELD_LABELS[f] || f).join(', '))
+                : 'Complete'}</td>
               <td>${p.consentStatus === 'VALID' ? (p.sharesWithPartners ? 'Yes' : 'No') : '—'}</td>
-              <td class="table-actions">${personActions(p)}</td>
+              <td><div class="actions">${personActions(p)}</div></td>
             </tr>`).join('')}
         </tbody>
       </table>
     </div>`;
 }
 
-async function onPeopleAction(e, orgId) {
+async function onPeopleAction(e, orgId, refresh) {
   const button = e.target.closest('button[data-action]');
   if (!button) return;
 
   if (button.dataset.action === 'view') {
     openConsentPdf(button.dataset.consent);
+  } else if (button.dataset.action === 'edit') {
+    startPersonForm(orgId, button.dataset.person, refresh);
   } else if (button.dataset.action === 'capture') {
-    startConsentFlow(orgId, button.dataset.person);
+    startConsentFlow(orgId, { signerPersonId: button.dataset.person }, refresh);
+  } else if (button.dataset.action === 'capture-child') {
+    startConsentFlow(orgId, { coverPersonIds: [button.dataset.person] }, refresh);
   } else if (button.dataset.action === 'withdraw') {
     // one consent can cover a guardian and their children, and withdrawing it withdraws it for all of them
     const covered = currentPeople.filter(p => p.consentId === button.dataset.consent).map(p => `${p.name} ${p.surname}`);
@@ -145,7 +168,7 @@ async function onPeopleAction(e, orgId) {
     try {
       await withdrawConsent(button.dataset.consent, reason.trim(), await getAuthToken());
       showMessage('people-message', 'Consent withdrawn.');
-      loadPeople(orgId);
+      refresh();
     } catch (err) {
       console.error(err);
       showMessage('people-message', err.message || 'Failed to withdraw consent');
@@ -153,16 +176,41 @@ async function onPeopleAction(e, orgId) {
   }
 }
 
-function startConsentFlow(orgId, signerPersonId = null) {
+function startPersonForm(orgId, personId, refresh) {
+  openPersonForm({
+    orgId,
+    personId,
+    people: currentPeople,
+    onDone: async (person, { captureConsent }) => {
+      showMessage('people-message', personId ? 'Details saved.' : 'Person added.');
+      await refresh();
+      if (captureConsent) {
+        // a child is covered by an adult's signature, an adult signs for themselves
+        startConsentFlow(orgId, person.ageGroup === 'CHILD'
+          ? { coverPersonIds: [person.personId] }
+          : { signerPersonId: person.personId }, refresh);
+      }
+    }
+  });
+}
+
+function startConsentFlow(orgId, { signerPersonId = null, coverPersonIds = [] } = {}, refresh) {
   openConsentFlow({
     orgId,
     people: currentPeople,
     signerPersonId,
+    coverPersonIds,
     onDone: () => {
       showMessage('people-message', 'Consent saved.');
-      loadPeople(orgId);
+      refresh();
     }
   });
+}
+
+/** People first (families list who is already in one), then the families. */
+async function refreshPeopleAndFamilies(orgId) {
+  await loadPeople(orgId);
+  await loadFamilies(orgId);
 }
 
 // ---------- Hub ----------
@@ -304,7 +352,7 @@ async function addOrg(organizationId, button) {
 }
 
 // ---------- views & header menu ----------
-const VIEWS = { projects: 'Projects', people: 'People', hubs: 'Hubs' };
+const VIEWS = { projects: 'Projects', people: 'People', families: 'Families', hubs: 'Hubs' };
 
 function showView() {
   const name = VIEWS[location.hash.slice(1)] ? location.hash.slice(1) : 'projects';
@@ -396,7 +444,7 @@ async function initEmployeePortal() {
     showMessage('create-project-message', '');
 
     loadProjects(orgId);
-    loadPeople(orgId);
+    refreshPeopleAndFamilies(orgId);
     loadHub(org, orgId, isAdmin);
   };
 
@@ -432,10 +480,17 @@ async function initEmployeePortal() {
   });
 
   // People & consent
+  const refresh = () => refreshPeopleAndFamilies(activeOrgSelect.value);
   document.getElementById('register-people-btn').addEventListener('click', () =>
-    startConsentFlow(activeOrgSelect.value));
+    startPersonForm(activeOrgSelect.value, null, refresh));
   document.getElementById('people-list').addEventListener('click', (e) =>
-    onPeopleAction(e, activeOrgSelect.value));
+    onPeopleAction(e, activeOrgSelect.value, refresh));
+  initFamilies({
+    getOrgId: () => activeOrgSelect.value,
+    getPeopleList: getCurrentPeople,
+    refresh,
+    showMessage
+  });
 
   // Create Hub form
   const createHubForm = document.getElementById('create-hub-form');

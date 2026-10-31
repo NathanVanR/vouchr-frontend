@@ -43,8 +43,13 @@ function seed() {
       person('demo-p-4', 'Johan', 'van der Merwe', '1958-09-05', 'M', 'ADULT', 'VALID', 'demo-c-2', false),
       person('demo-p-5', 'Aisha', 'Patel', '1991-01-30', 'F', 'ADULT', 'MISSING', null, false),
       person('demo-p-6', 'Naledi', 'Dlamini', '1979-06-18', 'F', 'ADULT', 'WITHDRAWN', 'demo-c-3', false),
-      person('demo-p-7', 'Bongani', 'Dlamini', '2006-12-01', 'M', 'ADULT', 'NEEDS_OWN_CONSENT', null, false, 'demo-p-6', 'CHILD')
+      person('demo-p-7', 'Bongani', 'Dlamini', '2006-12-01', 'M', 'ADULT', 'NEEDS_OWN_CONSENT', null, false, 'demo-p-6', 'CHILD'),
+      // captured with only what the school knew: a child with no parent on record, and a name only
+      person('demo-p-8', 'Lwazi', 'Ndlovu', null, 'M', 'CHILD', 'MISSING', null, false, null, null, 'Sunshine Primary'),
+      person('demo-p-9', 'Priya', 'Naidoo', null, null, 'UNKNOWN', 'MISSING', null, false)
     ],
+    families: [],
+    referrals: [],
     beneficiaries: [
       { projectId: 'demo-proj-1', personId: 'demo-p-2', attributes: { school: 'Sunshine Primary' }, createdDate: ago(40) },
       { projectId: 'demo-proj-1', personId: 'demo-p-3', attributes: { school: 'Sunshine Primary' }, createdDate: ago(40) },
@@ -63,9 +68,23 @@ function seed() {
 }
 
 function person(personId, name, surname, dateOfBirth, gender, ageGroup, consentStatus, consentId, sharesWithPartners,
-                primaryPersonId = null, relationship = null) {
-  return { personId, name, surname, dateOfBirth, gender, ageGroup, consentStatus, consentId, sharesWithPartners,
-           primaryPersonId, relationship };
+                primaryPersonId = null, relationship = null, school = null) {
+  return withMissing({ personId, name, surname, dateOfBirth, gender, ageGroup, consentStatus, consentId, sharesWithPartners,
+           primaryPersonId, relationship, school, familyId: null, hasIdNumber: !!dateOfBirth,
+           idNumber: null, phoneNumber: null, email: null, address: null });
+}
+
+/** Mirrors Person.missingFields() on the server. */
+function withMissing(p) {
+  const missing = [];
+  if (!p.gender) missing.push('gender');
+  if (!p.dateOfBirth) missing.push('dateOfBirth');
+  if (!p.hasIdNumber) missing.push('idNumber');
+  if (!p.phoneNumber) missing.push('phoneNumber');
+  if (!p.address || !p.address.streetAddress) missing.push('address');
+  if (p.ageGroup === 'CHILD' && !p.school) missing.push('school');
+  p.missingFields = missing;
+  return p;
 }
 
 function load() {
@@ -162,6 +181,8 @@ export async function demoRequest(endpoint, options = {}) {
   const method = (options.method || 'GET').toUpperCase();
   const body = options.body ? JSON.parse(options.body) : {};
   const state = load();
+  state.families = state.families || [];
+  state.referrals = state.referrals || [];
   const path = endpoint.split('?')[0];
   const query = new URLSearchParams(endpoint.split('?')[1] || '');
   let m;
@@ -230,7 +251,16 @@ export async function demoRequest(endpoint, options = {}) {
 
   // People & consent
   } else if ((m = path.match(/^\/api\/organizations\/([^/]+)\/people$/))) {
-    result = people();
+    if (method === 'POST') {
+      result = createPerson(state, body);
+    } else {
+      result = people();
+    }
+  } else if ((m = path.match(/^\/api\/people\/([^/]+)$/))) {
+    const p = people().find(x => x.personId === m[1]);
+    if (!p) throw new Error('Person not found');
+    if (method === 'PATCH') applyPersonUpdate(p, body);
+    result = p;
   } else if ((m = path.match(/^\/api\/organizations\/([^/]+)\/consent-form$/))) {
     result = CONSENT_FORM;
   } else if ((m = path.match(/^\/api\/organizations\/([^/]+)\/consents$/)) && method === 'POST') {
@@ -238,6 +268,46 @@ export async function demoRequest(endpoint, options = {}) {
   } else if ((m = path.match(/^\/api\/consents\/([^/]+)\/withdraw$/))) {
     people().filter(p => p.consentId === m[1]).forEach(p => { p.consentStatus = 'WITHDRAWN'; });
     result = {};
+
+  // Families & referrals
+  } else if ((m = path.match(/^\/api\/organizations\/([^/]+)\/families$/))) {
+    if (method === 'POST') {
+      const family = { familyId: nextId('demo-f'), organizationId: m[1], organizationName: state.organizations[m[1]].name,
+        name: body.name, needs: body.needs || null, status: 'ACTIVE', view: 'OWNER', createdDate: new Date().toISOString() };
+      state.families.push(family);
+      (body.personIds || []).forEach((id) => { const p = people().find(x => x.personId === id); if (p) p.familyId = family.familyId; });
+      result = familyView(state, family);
+    } else {
+      result = state.families.filter(f => f.organizationId === m[1]).map(f => familyView(state, f));
+    }
+  } else if ((m = path.match(/^\/api\/families\/([^/]+)$/))) {
+    const family = state.families.find(f => f.familyId === m[1]);
+    if (!family) throw new Error('Family not found');
+    if (method === 'PATCH') {
+      Object.assign(family, body);
+      if (body.status === 'CLOSED') state.referrals.filter(r => r.familyId === family.familyId).forEach(r => { r.status = 'CLOSED'; });
+    }
+    result = familyView(state, family);
+  } else if ((m = path.match(/^\/api\/families\/([^/]+)\/members$/))) {
+    (body.add || []).forEach((id) => { const p = people().find(x => x.personId === id); if (p) p.familyId = m[1]; });
+    (body.remove || []).forEach((id) => { const p = people().find(x => x.personId === id); if (p && p.familyId === m[1]) p.familyId = null; });
+    result = familyView(state, state.families.find(f => f.familyId === m[1]));
+  } else if ((m = path.match(/^\/api\/families\/([^/]+)\/referrals$/)) && method === 'POST') {
+    const family = state.families.find(f => f.familyId === m[1]);
+    const target = state.searchableOrgs.find(o => o.organizationId === body.toOrganizationId);
+    const referral = { referralId: nextId('demo-r'), familyId: family.familyId, familyName: family.name, familyNeeds: family.needs,
+      fromOrganizationId: family.organizationId, fromOrganizationName: family.organizationName,
+      toOrganizationId: body.toOrganizationId, toOrganizationName: target ? target.name : 'Partner organisation',
+      reason: body.reason || null, status: 'PENDING', requestedByName: 'Demo Admin', createdDate: new Date().toISOString() };
+    state.referrals.push(referral);
+    result = referral;
+  } else if ((m = path.match(/^\/api\/organizations\/([^/]+)\/referrals$/))) {
+    // nobody else uses the demo, so nothing is ever referred to the demo organisation
+    result = query.get('direction') === 'outgoing' ? state.referrals.filter(r => r.fromOrganizationId === m[1]) : [];
+  } else if ((m = path.match(/^\/api\/referrals\/([^/]+)\/(accept|decline|close)$/))) {
+    const referral = state.referrals.find(r => r.referralId === m[1]);
+    referral.status = { accept: 'ACCEPTED', decline: 'DECLINED', close: 'CLOSED' }[m[2]];
+    result = referral;
 
   // Staff & organisations
   } else if (path === '/api/organization/add-staff') {
@@ -263,43 +333,77 @@ export async function demoRequest(endpoint, options = {}) {
   return result;
 }
 
+function ageGroupFrom(dateOfBirth, category) {
+  if (dateOfBirth) return Number(new Date().getFullYear()) - Number(dateOfBirth.slice(0, 4)) >= 18 ? 'ADULT' : 'CHILD';
+  return category || 'UNKNOWN';
+}
+
+function createPerson(state, body) {
+  const ageGroup = ageGroupFrom(body.dateOfBirth, body.ageCategory);
+  const p = withMissing({
+    personId: `demo-p-${++state.seq}`, name: body.name, surname: body.surname, dateOfBirth: body.dateOfBirth || null,
+    gender: body.gender || null, ageGroup, consentStatus: 'MISSING', consentId: null, sharesWithPartners: false,
+    primaryPersonId: body.primaryPersonId || null, relationship: body.relationship || null, school: body.school || null,
+    familyId: null, hasIdNumber: !!body.idNumber, idNumber: body.idNumber || null, phoneNumber: body.phoneNumber || null,
+    email: body.email || null, address: body.address || null, ageCategory: body.ageCategory || null
+  });
+  state.people.push(p);
+  return p;
+}
+
+function applyPersonUpdate(p, body) {
+  ['name', 'surname', 'gender', 'school', 'dateOfBirth', 'phoneNumber', 'email', 'primaryPersonId', 'relationship', 'ageCategory']
+    .forEach((k) => { if (body[k] !== undefined && body[k] !== null) p[k] = body[k] === '' ? null : body[k]; });
+  if (body.idNumber !== undefined && body.idNumber !== null) {
+    p.idNumber = body.idNumber || null;
+    p.hasIdNumber = !!body.idNumber;
+  }
+  if (body.address) {
+    const any = Object.values(body.address).some(Boolean);
+    p.address = any ? body.address : null;
+  }
+  p.ageGroup = ageGroupFrom(p.dateOfBirth, p.ageCategory);
+  withMissing(p);
+}
+
+function familyView(state, family) {
+  const members = state.people.filter(p => p.familyId === family.familyId).map(p => ({
+    personId: p.personId, name: p.name, surname: p.surname, gender: p.gender, ageGroup: p.ageGroup, school: p.school,
+    consentStatus: p.consentStatus, relationship: p.relationship
+  }));
+  return { ...family, members, memberCount: members.length, hiddenMemberCount: 0,
+    referrals: state.referrals.filter(r => r.familyId === family.familyId) };
+}
+
 function recordConsent(state, body) {
   const consentId = `demo-c-${++state.seq}`;
   const s = body.signer || {};
   const wantsPartner = Object.entries(body.acknowledgements || {}).some(([id, yes]) => id === 'c-partner' && yes);
-  let signer;
+  const covered = [];
 
-  if (s.newPerson) {
-    signer = {
-      personId: `demo-p-${++state.seq}`, name: s.newPerson.name, surname: s.newPerson.surname,
-      dateOfBirth: s.newPerson.dateOfBirth, gender: s.newPerson.gender, ageGroup: 'ADULT',
-      primaryPersonId: null, relationship: null
-    };
-    state.people.push(signer);
-  } else {
-    signer = state.people.find(p => p.personId === s.personId);
+  if (s.personId) {
+    const signer = state.people.find(p => p.personId === s.personId);
+    if (s.dateOfBirth) { signer.dateOfBirth = s.dateOfBirth; signer.ageGroup = ageGroupFrom(s.dateOfBirth); }
+    if (s.idNumber) { signer.hasIdNumber = true; signer.idNumber = s.idNumber; }
+    withMissing(signer);
+    if (signer.consentStatus !== 'VALID') {
+      signer.consentStatus = 'VALID';
+      signer.consentId = consentId;
+      signer.sharesWithPartners = wantsPartner;
+      covered.push(signer.personId);
+    }
   }
-  signer.consentStatus = 'VALID';
-  signer.consentId = consentId;
-  signer.sharesWithPartners = wantsPartner;
-
-  const needsOwnConsentPersonIds = [];
-  (body.dependents || []).forEach((d) => {
-    const adult = Number(new Date().getFullYear()) - Number(d.dateOfBirth.slice(0, 4)) >= 18;
-    const child = {
-      personId: `demo-p-${++state.seq}`, name: d.name, surname: d.surname, dateOfBirth: d.dateOfBirth, gender: d.gender,
-      ageGroup: adult ? 'ADULT' : 'CHILD', primaryPersonId: signer.personId, relationship: d.relationship,
-      consentStatus: adult ? 'NEEDS_OWN_CONSENT' : 'VALID', consentId: adult ? null : consentId, sharesWithPartners: !adult && wantsPartner
-    };
-    if (adult) needsOwnConsentPersonIds.push(child.personId);
-    state.people.push(child);
+  (body.coveredPersonIds || []).forEach((id) => {
+    const child = state.people.find(p => p.personId === id);
+    if (!child || child.ageGroup !== 'CHILD') throw new Error('Only children under 18 can be covered by someone else');
+    child.consentStatus = 'VALID';
+    child.consentId = consentId;
+    child.sharesWithPartners = wantsPartner;
+    covered.push(child.personId);
   });
+  if (!covered.length) throw new Error('Nobody is covered by this consent');
 
-  // children already registered under this signer are covered too
-  state.people.filter(p => p.primaryPersonId === signer.personId && p.ageGroup === 'CHILD' && p.consentStatus !== 'VALID')
-    .forEach((p) => { p.consentStatus = 'VALID'; p.consentId = consentId; p.sharesWithPartners = wantsPartner; });
-
-  return { consentId, needsOwnConsentPersonIds };
+  return { consentId, personIds: covered };
 }
 
 export async function demoConsentPdf() {

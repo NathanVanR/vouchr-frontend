@@ -140,6 +140,26 @@ export async function getPeople(orgId, token) {
   return request(`/api/organizations/${orgId}/people`, { token });
 }
 
+export async function createPerson(orgId, payload, token) {
+  return request(`/api/organizations/${orgId}/people`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token
+  });
+}
+
+export async function getPerson(personId, token) {
+  return request(`/api/people/${personId}`, { token });
+}
+
+export async function updatePerson(personId, payload, token) {
+  return request(`/api/people/${personId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token
+  });
+}
+
 export async function getConsentForm(orgId, token) {
   return request(`/api/organizations/${orgId}/consent-form`, { token });
 }
@@ -171,6 +191,56 @@ export async function fetchConsentPdf(consentId, token) {
     throw new Error(data.message || data.error || "Could not load the signed copy");
   }
   return response.blob();
+}
+
+// Families & referrals
+export async function getFamilies(orgId, token) {
+  return request(`/api/organizations/${orgId}/families`, { token });
+}
+
+export async function createFamily(orgId, payload, token) {
+  return request(`/api/organizations/${orgId}/families`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token
+  });
+}
+
+export async function getFamily(familyId, token) {
+  return request(`/api/families/${familyId}`, { token });
+}
+
+export async function updateFamily(familyId, payload, token) {
+  return request(`/api/families/${familyId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token
+  });
+}
+
+export async function changeFamilyMembers(familyId, payload, token) {
+  return request(`/api/families/${familyId}/members`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token
+  });
+}
+
+export async function referFamily(familyId, payload, token) {
+  return request(`/api/families/${familyId}/referrals`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token
+  });
+}
+
+export async function getReferrals(orgId, direction, token) {
+  return request(`/api/organizations/${orgId}/referrals?direction=${direction}`, { token });
+}
+
+// action: "accept" | "decline" | "close"
+export async function answerReferral(referralId, action, token) {
+  return request(`/api/referrals/${referralId}/${action}`, { method: "POST", token });
 }
 
 // Platform settings (platform admins only)

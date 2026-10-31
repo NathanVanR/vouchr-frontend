@@ -1,14 +1,12 @@
-// js/consent.js — staff-only registration + witnessed consent, on one device:
-//   1. who is registering (a new adult, or someone already registered) and their dependents
+// js/consent.js — staff-only witnessed consent, on one device. People are added separately (person-form.js):
+//   1. who signs (a registered adult, or a guardian who is not registered) and which children are covered
 //   2. the signer reads the contract, makes the optional choices, ticks ONE box
 //   3. the signer signs
 //   4. the staff member confirms they witnessed it
 import { getConsentForm, signConsent, fetchConsentPdf } from './api.js';
-import { getAuthToken, escapeHtml, RELATIONSHIP_OPTIONS } from './session.js';
-import {
-  isValidStreetAddress, normaliseStreetAddress, STREET_ADDRESS_MESSAGE,
-  isValidSaId, dateOfBirthFromSaId, dateOfBirthMatchesId, ageOn, AGE_OF_MAJORITY
-} from './utils.js';
+import { getAuthToken, escapeHtml } from './session.js';
+import { memberPicker } from './member-picker.js';
+import { isValidSaId, dateOfBirthFromSaId, dateOfBirthMatchesId, ageOn, AGE_OF_MAJORITY } from './utils.js';
 
 const OPTIONAL_TYPES = ['PARTNER_SHARING', 'REFERRALS', 'SPECIAL_INFORMATION', 'ANONYMISED_RESEARCH'];
 
@@ -82,25 +80,24 @@ function createSignaturePad(canvas) {
 }
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
-const blankSigner = () => ({
-  name: '', surname: '', idNumber: '', dob: '', gender: '', phone: '', email: '',
-  unit: '', complex: '', street: '', suburb: '', city: '', province: ''
-});
-const blankDependent = () => ({ name: '', surname: '', dob: '', gender: '', relationship: 'CHILD', idNumber: '' });
+const blankGuardian = () => ({ name: '', surname: '', idNumber: '', dob: '' });
 
 /**
- * @param orgId          organisation the consent is for
- * @param people         the organisation's people (from GET /people)
- * @param signerPersonId optional: open straight on an already-registered adult
- * @param onDone         called after a successful signing (refresh the caller's lists)
+ * Consent is captured separately from adding a person, so everyone it covers is already registered.
+ *
+ * @param orgId           organisation the consent is for
+ * @param people          the organisation's people (from GET /people)
+ * @param signerPersonId  optional: open with this registered adult as the signer
+ * @param coverPersonIds  optional: children to tick as covered by this signature
+ * @param onDone          called after a successful signing (refresh the caller's lists)
  */
-export function openConsentFlow({ orgId, people = [], signerPersonId = null, onDone = () => {} }) {
+export function openConsentFlow({ orgId, people = [], signerPersonId = null, coverPersonIds = [], onDone = () => {} }) {
   const dialog = document.createElement('dialog');
   dialog.className = 'consent-dialog';
   dialog.innerHTML = `
     <div class="consent-header">
       <h2 id="consent-title"></h2>
-      <button type="button" class="text-link" id="consent-cancel" style="background:none;border:none;cursor:pointer;">Cancel</button>
+      <button type="button" class="text-link" id="consent-cancel">Cancel</button>
     </div>
     <div id="consent-body"></div>
     <p class="message error" id="consent-error" hidden></p>`;
@@ -114,18 +111,30 @@ export function openConsentFlow({ orgId, people = [], signerPersonId = null, onD
   const errorEl = dialog.querySelector('#consent-error');
 
   const eligible = people.filter(p => p.ageGroup !== 'CHILD'); // adults (and people whose age is not known yet)
+  const needsCover = (p) => p.ageGroup === 'CHILD' && p.consentStatus !== 'VALID';
   const state = {
-    mode: signerPersonId && eligible.some(p => p.personId === signerPersonId) ? 'existing' : 'new',
+    mode: signerPersonId && eligible.some(p => p.personId === signerPersonId) ? 'existing'
+      : (eligible.length ? 'existing' : 'guardian'),
     signerPersonId: signerPersonId || (eligible[0] && eligible[0].personId) || null,
-    signer: blankSigner(),
-    extra: { dob: '', idNumber: '' },        // for an existing person whose record lacks them
-    dependents: [],
+    guardian: blankGuardian(),
+    extra: { dob: '', idNumber: '' },        // for a registered signer whose record lacks them
+    covered: new Set(coverPersonIds.filter(id => people.some(p => p.personId === id && needsCover(p)))),
     form: null,
     acknowledgements: {},
     relationshipToDependents: 'PARENT',
     signature: null,
     pad: null
   };
+  // opened for a child with no adult chosen: prefer their registered parent, otherwise a guardian entered here
+  if (!signerPersonId && state.covered.size) {
+    const first = people.find(p => state.covered.has(p.personId));
+    const parent = first && eligible.find(p => p.personId === first.primaryPersonId);
+    if (parent) {
+      state.signerPersonId = parent.personId;
+    } else {
+      state.mode = 'guardian';
+    }
+  }
 
   const showError = (text) => {
     errorEl.textContent = text || '';
@@ -133,65 +142,31 @@ export function openConsentFlow({ orgId, people = [], signerPersonId = null, onD
   };
 
   const existingSigner = () => people.find(p => p.personId === state.signerPersonId) || null;
-  const signerName = () => state.mode === 'new'
-    ? `${state.signer.name} ${state.signer.surname}`.trim()
+  const signerName = () => state.mode === 'guardian'
+    ? `${state.guardian.name} ${state.guardian.surname}`.trim()
     : (existingSigner() ? `${existingSigner().name} ${existingSigner().surname}` : '');
+  /** A registered signer without a valid consent signs for themselves too. */
+  const signsForSelf = () => state.mode === 'existing' && !!existingSigner() && existingSigner().consentStatus !== 'VALID';
+  const coveredChildren = () => people.filter(p => state.covered.has(p.personId) && p.personId !== state.signerPersonId);
+  const childrenCovered = () => coveredChildren().length;
 
-  /** Registered children of the existing signer who still need covering. */
-  const existingChildrenToCover = () => state.mode !== 'existing' ? [] : people.filter(p =>
-    p.primaryPersonId === state.signerPersonId && p.ageGroup === 'CHILD' && p.consentStatus !== 'VALID');
-  const newChildren = () => state.dependents.filter(d => d.dob && ageOn(d.dob) < AGE_OF_MAJORITY);
-  const newAdults = () => state.dependents.filter(d => d.dob && ageOn(d.dob) >= AGE_OF_MAJORITY);
-  const childrenCovered = () => newChildren().length + existingChildrenToCover().length;
-
-  // ---------- step 1: who is registering ----------
+  // ---------- step 1: who signs, and who is covered ----------
   function stepWho() {
-    title.textContent = 'Step 1 of 4 — Who is registering?';
+    title.textContent = 'Step 1 of 4 — Who signs?';
     showError('');
-    const s = state.signer;
+    const g = state.guardian;
     const input = (id, label, value, attrs = '') => `
       <div class="form-group"><label for="${id}">${label}</label>
         <input type="text" id="${id}" value="${escapeHtml(value)}" ${attrs}></div>`;
 
     body.innerHTML = `
-      <div class="consent-mode">
-        <label><input type="radio" name="mode" value="new" ${state.mode === 'new' ? 'checked' : ''}> Register a new adult</label>
-        <label><input type="radio" name="mode" value="existing" ${state.mode === 'existing' ? 'checked' : ''}
-          ${eligible.length ? '' : 'disabled'}> Someone already registered</label>
-      </div>
-      <p class="muted">Every adult (18 or older) signs their own consent. A parent or legal guardian's signature
-        also covers their children.</p>
+      <p class="muted">Every adult (18 or older) signs their own consent. A parent or legal guardian's signature also
+        covers children under 18. A child with no parent on record can be covered by a guardian who is not registered.</p>
 
-      <div id="who-new" ${state.mode === 'new' ? '' : 'hidden'}>
-        <div class="form-row">
-          ${input('w-name', 'First name', s.name, 'maxlength="255" autocomplete="off"')}
-          ${input('w-surname', 'Surname', s.surname, 'maxlength="255" autocomplete="off"')}
-        </div>
-        <div class="form-row">
-          ${input('w-id', 'South African ID number', s.idNumber, 'inputmode="numeric" maxlength="13"')}
-          <div class="form-group"><label for="w-dob">Date of birth</label>
-            <input type="date" id="w-dob" value="${escapeHtml(s.dob)}" max="${todayIso()}"></div>
-          <div class="form-group"><label for="w-gender">Gender (optional)</label>
-            <select id="w-gender">
-              <option value="">—</option>
-              ${['MALE', 'FEMALE', 'OTHER'].map(g => `<option value="${g}" ${s.gender === g ? 'selected' : ''}>${g[0] + g.slice(1).toLowerCase()}</option>`).join('')}
-            </select></div>
-        </div>
-        <div class="form-row">
-          ${input('w-phone', 'Phone number (optional)', s.phone, 'type="tel"')}
-          ${input('w-email', 'Email (optional)', s.email, 'type="email"')}
-        </div>
-        <div class="form-row">
-          ${input('w-unit', 'Unit number (optional)', s.unit)}
-          ${input('w-complex', 'Complex / building (optional)', s.complex)}
-        </div>
-        ${input('w-street', 'Street address', s.street, 'maxlength="255" placeholder="12 Mandela Way"')}
-        <p class="muted" style="margin-top: -0.5rem;">Street number and street name, for example 12 Mandela Way.</p>
-        <div class="form-row">
-          ${input('w-suburb', 'Suburb', s.suburb)}
-          ${input('w-city', 'City', s.city)}
-          ${input('w-province', 'Province', s.province)}
-        </div>
+      <div class="consent-mode">
+        <label><input type="radio" name="mode" value="existing" ${state.mode === 'existing' ? 'checked' : ''}
+          ${eligible.length ? '' : 'disabled'}> A registered adult</label>
+        <label><input type="radio" name="mode" value="guardian" ${state.mode === 'guardian' ? 'checked' : ''}> A guardian who is not registered</label>
       </div>
 
       <div id="who-existing" ${state.mode === 'existing' ? '' : 'hidden'}>
@@ -201,120 +176,74 @@ export function openConsentFlow({ orgId, people = [], signerPersonId = null, onD
               ${escapeHtml(p.name)} ${escapeHtml(p.surname)}${p.consentStatus === 'VALID' ? ' (has a consent: add children)' : ''}</option>`).join('')}
           </select></div>
         <div id="e-extra"></div>
-        <div id="e-children" class="muted"></div>
       </div>
 
-      <h3>Dependents</h3>
-      <p class="muted">Optional. Children under 18 are covered by this signature; dependents who are 18 or older
-        have to sign their own consent.</p>
-      <div id="dependents"></div>
-      <button type="button" class="btn" id="add-dependent">Add a dependent</button>
+      <div id="who-guardian" ${state.mode === 'guardian' ? '' : 'hidden'}>
+        <div class="form-row">
+          ${input('g-name', 'First name', g.name, 'maxlength="255" autocomplete="off"')}
+          ${input('g-surname', 'Surname', g.surname, 'maxlength="255" autocomplete="off"')}
+        </div>
+        <div class="form-row">
+          ${input('g-id', 'South African ID number', g.idNumber, 'inputmode="numeric" maxlength="13"')}
+          <div class="form-group"><label for="g-dob">Date of birth (optional)</label>
+            <input type="date" id="g-dob" value="${escapeHtml(g.dob)}" max="${todayIso()}"></div>
+        </div>
+        <p class="muted">Their name and ID number are kept on the signed consent only; they are not added as a person.</p>
+      </div>
+
+      <h3>Children covered by this signature</h3>
+      <p class="muted">Search for each child this person is signing for. Add as many as needed.</p>
+      <div id="covered"></div>
       <div class="consent-actions"><button type="button" class="btn btn-primary" id="next">Next</button></div>`;
 
     const get = (id) => body.querySelector('#' + id);
-    const noteFor = (d) => !d.dob ? '' : (ageOn(d.dob) < AGE_OF_MAJORITY
-      ? 'Under 18: covered by this consent.'
-      : '18 or older: must sign their own consent.');
 
-    // dependents
-    const list = get('dependents');
-    const renderDependents = () => {
-      list.innerHTML = state.dependents.map((d, i) => `
-        <div class="dependent-row" data-index="${i}">
-          <div class="form-row">
-            <div class="form-group"><label>First name</label>
-              <input type="text" data-field="name" maxlength="255" value="${escapeHtml(d.name)}"></div>
-            <div class="form-group"><label>Surname</label>
-              <input type="text" data-field="surname" maxlength="255" value="${escapeHtml(d.surname)}"></div>
-          </div>
-          <div class="form-row">
-            <div class="form-group"><label>Date of birth</label>
-              <input type="date" data-field="dob" max="${todayIso()}" value="${escapeHtml(d.dob)}"></div>
-            <div class="form-group"><label>Relationship to the adult</label>
-              <select data-field="relationship">
-                ${RELATIONSHIP_OPTIONS.map(([v, l]) => `<option value="${v}" ${d.relationship === v ? 'selected' : ''}>${l}</option>`).join('')}
-              </select></div>
-            <div class="form-group"><label>Gender (optional)</label>
-              <select data-field="gender">
-                <option value="">—</option>
-                ${['MALE', 'FEMALE', 'OTHER'].map(g => `<option value="${g}" ${d.gender === g ? 'selected' : ''}>${g[0] + g.slice(1).toLowerCase()}</option>`).join('')}
-              </select></div>
-            <div class="form-group"><label>ID number (optional)</label>
-              <input type="text" data-field="idNumber" inputmode="numeric" maxlength="13" value="${escapeHtml(d.idNumber)}"></div>
-          </div>
-          <p class="muted dependent-note">${noteFor(d)}</p>
-          <button type="button" class="text-link" data-remove="${i}" style="background:none;border:none;cursor:pointer;">Remove</button>
-        </div>`).join('');
-    };
-    list.addEventListener('input', (e) => {
-      const row = e.target.closest('[data-index]');
-      if (!row || !e.target.dataset.field) return;
-      const d = state.dependents[Number(row.dataset.index)];
-      d[e.target.dataset.field] = e.target.value;
-      row.querySelector('.dependent-note').textContent = noteFor(d);
+    const coveredPicker = memberPicker(get('covered'), {
+      getCandidates: () => people.filter(p => needsCover(p) && p.personId !== state.signerPersonId),
+      selected: state.covered,
+      emptyText: 'No children are waiting for a consent. Add a child first, then capture consent for them.',
+      placeholder: 'Search children by name or school…'
     });
-    list.addEventListener('click', (e) => {
-      if (e.target.dataset.remove === undefined) return;
-      collect();
-      state.dependents.splice(Number(e.target.dataset.remove), 1);
-      renderDependents();
-    });
-    get('add-dependent').addEventListener('click', () => {
-      collect();
-      state.dependents.push(blankDependent());
-      renderDependents();
-    });
-    renderDependents();
+    const renderCovered = () => coveredPicker.refresh();
 
-    // existing signer: ask only for what the record lacks, and list children that will be covered
+    // registered signer: ask only for what the record lacks
     const renderExisting = () => {
       const p = existingSigner();
       const extra = get('e-extra');
-      const children = get('e-children');
-      if (!p) {
-        extra.innerHTML = '';
-        children.textContent = '';
-        return;
-      }
+      if (!p) { extra.innerHTML = ''; return; }
       extra.innerHTML = `
         ${p.ageGroup === 'UNKNOWN' ? `<div class="form-group"><label for="e-dob">Date of birth</label>
           <input type="date" id="e-dob" value="${escapeHtml(state.extra.dob)}" max="${todayIso()}"></div>` : ''}
         ${!p.hasIdNumber ? `<div class="form-group"><label for="e-id">South African ID number</label>
           <input type="text" id="e-id" inputmode="numeric" maxlength="13" value="${escapeHtml(state.extra.idNumber)}"></div>` : ''}`;
-      const kids = existingChildrenToCover();
-      children.textContent = kids.length
-        ? `Also covered by this signature: ${kids.map(k => `${k.name} ${k.surname}`).join(', ')}.`
-        : '';
     };
     renderExisting();
+    renderCovered();
     get('e-person').addEventListener('change', () => {
       collect();
       state.signerPersonId = get('e-person').value;
+      state.covered.delete(state.signerPersonId);
       renderExisting();
+      renderCovered();
     });
 
-    // new signer: fill the date of birth from a valid ID number
-    get('w-id').addEventListener('input', () => {
-      const dob = dateOfBirthFromSaId(get('w-id').value.trim());
-      if (dob && !get('w-dob').value) get('w-dob').value = dob;
+    get('g-id').addEventListener('input', () => {
+      const dob = dateOfBirthFromSaId(get('g-id').value.trim());
+      if (dob && !get('g-dob').value) get('g-dob').value = dob;
     });
 
     body.querySelectorAll('input[name="mode"]').forEach(radio => radio.addEventListener('change', () => {
       collect();
       state.mode = radio.value;
-      get('who-new').hidden = state.mode !== 'new';
       get('who-existing').hidden = state.mode !== 'existing';
+      get('who-guardian').hidden = state.mode !== 'guardian';
       renderExisting();
+      renderCovered();
     }));
 
     function collect() {
       const val = (id) => (get(id) ? get(id).value.trim() : '');
-      Object.assign(state.signer, {
-        name: val('w-name'), surname: val('w-surname'), idNumber: val('w-id'), dob: val('w-dob'),
-        gender: val('w-gender'), phone: val('w-phone'), email: val('w-email'), unit: val('w-unit'),
-        complex: val('w-complex'), street: val('w-street'), suburb: val('w-suburb'), city: val('w-city'),
-        province: val('w-province')
-      });
+      Object.assign(state.guardian, { name: val('g-name'), surname: val('g-surname'), idNumber: val('g-id'), dob: val('g-dob') });
       if (get('e-dob')) state.extra.dob = val('e-dob');
       if (get('e-id')) state.extra.idNumber = val('e-id');
     }
@@ -328,18 +257,15 @@ export function openConsentFlow({ orgId, people = [], signerPersonId = null, onD
   }
 
   function validateWho() {
-    const s = state.signer;
-    if (state.mode === 'new') {
-      if (!s.name || !s.surname) return 'Enter the first name and surname.';
-      if (!isValidSaId(s.idNumber)) return 'Enter a valid 13-digit South African ID number.';
-      if (!s.dob) return 'Enter the date of birth.';
-      if (s.dob > todayIso()) return 'The date of birth cannot be in the future.';
-      if (!dateOfBirthMatchesId(s.dob, s.idNumber)) return 'The date of birth does not match the ID number.';
-      if (ageOn(s.dob) < AGE_OF_MAJORITY) {
-        return 'The person signing must be 18 or older. Register the adult here and add the child as a dependent.';
-      }
-      if (!isValidStreetAddress(s.street)) return STREET_ADDRESS_MESSAGE;
-      if (!s.suburb || !s.city || !s.province) return 'Enter the suburb, city and province.';
+    if (state.mode === 'guardian') {
+      const g = state.guardian;
+      if (!g.name || !g.surname) return 'Enter the guardian\'s first name and surname.';
+      if (!isValidSaId(g.idNumber)) return 'Enter a valid 13-digit South African ID number.';
+      const dob = g.dob || dateOfBirthFromSaId(g.idNumber);
+      if (dob > todayIso()) return 'The date of birth cannot be in the future.';
+      if (!dateOfBirthMatchesId(dob, g.idNumber)) return 'The date of birth does not match the ID number.';
+      if (ageOn(dob) < AGE_OF_MAJORITY) return 'The person signing must be 18 or older.';
+      if (!childrenCovered()) return 'Tick the children this guardian is signing for.';
     } else {
       const p = existingSigner();
       if (!p) return 'Choose the person who is signing.';
@@ -351,22 +277,10 @@ export function openConsentFlow({ orgId, people = [], signerPersonId = null, onD
         if (!isValidSaId(state.extra.idNumber)) return 'Enter a valid 13-digit South African ID number.';
         if (!dateOfBirthMatchesId(dob, state.extra.idNumber)) return 'The date of birth does not match the ID number.';
       }
-    }
-
-    for (const [i, d] of state.dependents.entries()) {
-      const who = `Dependent ${i + 1}`;
-      if (!d.name || !d.surname) return `${who}: enter the first name and surname.`;
-      if (!d.dob) return `${who}: enter the date of birth.`;
-      if (d.dob > todayIso()) return `${who}: the date of birth cannot be in the future.`;
-      if (d.idNumber) {
-        if (!isValidSaId(d.idNumber)) return `${who}: the ID number is not a valid South African ID number.`;
-        if (!dateOfBirthMatchesId(d.dob, d.idNumber)) return `${who}: the date of birth does not match the ID number.`;
+      if (!signsForSelf() && !childrenCovered()) {
+        return 'This person already has a consent. To add children, tick at least one child under 18. '
+          + 'Other adults sign their own consent.';
       }
-    }
-
-    if (state.mode === 'existing' && existingSigner().consentStatus === 'VALID' && childrenCovered() === 0) {
-      return 'This person already has a consent. To add children, add at least one dependent under 18. '
-        + 'Dependents who are 18 or older sign their own consent.';
     }
     return '';
   }
@@ -471,7 +385,7 @@ export function openConsentFlow({ orgId, people = [], signerPersonId = null, onD
           </select></div>` : ''}
       <label>Signature: sign with your finger or a mouse</label>
       <canvas id="signature-canvas" class="signature-canvas"></canvas>
-      <button type="button" class="text-link" id="clear-signature" style="background:none;border:none;cursor:pointer;">Clear signature</button>
+      <button type="button" class="text-link" id="clear-signature">Clear signature</button>
       <div class="consent-actions">
         <button type="button" class="btn" id="back">Back</button>
         <button type="button" class="btn btn-primary" id="next">Next</button>
@@ -493,11 +407,11 @@ export function openConsentFlow({ orgId, people = [], signerPersonId = null, onD
     title.textContent = 'Step 4 of 4 — Staff witness';
     showError('');
     const covered = childrenCovered();
-    const adults = newAdults().length;
+    const forSelf = signsForSelf();
+    const childText = `${covered} ${covered === 1 ? 'child' : 'children'}`;
     body.innerHTML = `
       <p><strong>Hand the device back to the staff member.</strong></p>
-      <p>${escapeHtml(signerName())} is signing for themselves${covered ? ` and for ${covered} ${covered === 1 ? 'child' : 'children'}` : ''}.</p>
-      ${adults ? `<p class="muted">${adults} adult ${adults === 1 ? 'dependent has' : 'dependents have'} to sign their own consent afterwards.</p>` : ''}
+      <p>${escapeHtml(signerName())} is signing ${forSelf ? 'for themselves' : ''}${forSelf && covered ? ' and ' : ''}${covered ? `for ${childText}` : ''}.</p>
       <img src="${state.signature}" alt="Signature" class="signature-preview">
       <label class="consent-check">
         <input type="checkbox" id="witness-confirmed">
@@ -530,18 +444,9 @@ export function openConsentFlow({ orgId, people = [], signerPersonId = null, onD
   }
 
   function buildPayload() {
-    const s = state.signer;
-    const signer = state.mode === 'new'
-      ? {
-        newPerson: {
-          name: s.name, surname: s.surname, idNumber: s.idNumber, dateOfBirth: s.dob, gender: s.gender || null,
-          phoneNumber: s.phone || null, email: s.email || null,
-          address: {
-            unitNumber: s.unit || null, complexName: s.complex || null,
-            streetAddress: normaliseStreetAddress(s.street), suburb: s.suburb, city: s.city, province: s.province
-          }
-        }
-      }
+    const g = state.guardian;
+    const signer = state.mode === 'guardian'
+      ? { guardian: { name: g.name, surname: g.surname, idNumber: g.idNumber, dateOfBirth: g.dob || null } }
       : {
         personId: state.signerPersonId,
         dateOfBirth: state.extra.dob || null,
@@ -557,25 +462,20 @@ export function openConsentFlow({ orgId, people = [], signerPersonId = null, onD
     return {
       formVersionId: state.form.formVersionId,
       signer,
+      coveredPersonIds: coveredChildren().map(p => p.personId),
       relationshipToDependents: childrenCovered() ? state.relationshipToDependents : null,
       acknowledgements,
       signaturePng: state.signature,
-      witnessConfirmed: true,
-      dependents: state.dependents.map(d => ({
-        name: d.name, surname: d.surname, dateOfBirth: d.dob, gender: d.gender || null,
-        relationship: d.relationship, idNumber: d.idNumber || null
-      }))
+      witnessConfirmed: true
     };
   }
 
   function stepDone(result) {
     title.textContent = 'Consent saved';
     showError('');
-    const waiting = (result.needsOwnConsentPersonIds || []).length;
     body.innerHTML = `
-      <p>The signed consent has been recorded and a sealed copy has been stored.</p>
-      ${waiting ? `<p>${waiting} adult ${waiting === 1 ? 'dependent has' : 'dependents have'} been registered but
-        must sign their own consent. Use "Capture consent" next to ${waiting === 1 ? 'their name' : 'their names'} in the people list.</p>` : ''}
+      <p>The signed consent has been recorded and a sealed copy has been stored.
+        ${(result.personIds || []).length === 1 ? 'It covers 1 person.' : `It covers ${(result.personIds || []).length} people.`}</p>
       <div class="consent-actions">
         <button type="button" class="btn" id="view-pdf">View signed copy (PDF)</button>
         <button type="button" class="btn btn-primary" id="finish">Done</button>
