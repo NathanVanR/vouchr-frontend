@@ -63,6 +63,26 @@
               </select>
             </div>
           </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="required-service-select">Must be receiving before enrolment</label>
+              <select id="required-service-select">
+                <option value="">No prerequisite</option>
+                <option value="COUNSELLING">Counselling</option>
+                <option value="COURSE">A course / training</option>
+                <option value="FOOD">Food</option>
+                <option value="OTHER">Other service</option>
+              </select>
+              <p class="muted" style="margin-top: 0.5rem;">Met when the person (or their family) has this service on their care plan, from us or a partner, and is attending or has completed it.</p>
+            </div>
+            <div class="form-group">
+              <label for="enforcement-select">If they are not</label>
+              <select id="enforcement-select">
+                <option value="WARN">Staff may continue with a reason</option>
+                <option value="BLOCK">Do not allow enrolment</option>
+              </select>
+            </div>
+          </div>
           <p id="settings-message" class="muted"></p>
         </section>
 
@@ -80,6 +100,10 @@
               <select id="enrol-person" required></select>
             </div>
             <div class="form-row" id="extra-fields"></div>
+            <div class="form-group" id="override-group" hidden>
+              <label for="override-reason" id="override-label">Reason</label>
+              <input type="text" id="override-reason" maxlength="500">
+            </div>
             <button type="submit" class="btn btn-primary">Enrol</button>
           </form>
           <p id="add-message" class="muted" style="margin-top: 0.75rem;"></p>

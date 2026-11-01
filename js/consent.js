@@ -10,6 +10,9 @@ import { isValidSaId, dateOfBirthFromSaId, dateOfBirthMatchesId, ageOn, AGE_OF_M
 
 const OPTIONAL_TYPES = ['PARTNER_SHARING', 'REFERRALS', 'SPECIAL_INFORMATION', 'ANONYMISED_RESEARCH'];
 
+// The clauses the person must agree to. They are agreed by signing, under the statement shown above the signature.
+const requiredClauses = (form) => form.clauses.filter(c => c.mandatory && c.type !== 'ANONYMISED_RESEARCH');
+
 /** Opens the signed copy of a consent in a new tab. */
 export async function openConsentPdf(consentId) {
   const tab = window.open('', '_blank');
@@ -303,10 +306,8 @@ export function openConsentFlow({ orgId, people = [], signerPersonId = null, cov
 
     const clauses = state.form.clauses;
     const isOptional = (c) => OPTIONAL_TYPES.includes(c.type);
-    const isRequired = (c) => c.mandatory && c.type !== 'ANONYMISED_RESEARCH';
     const reading = clauses.filter(c => !isOptional(c));       // read in the scroll box
     const choices = clauses.filter(isOptional);                // switched on or off, default NO
-    const required = clauses.filter(isRequired);               // ticked once, at the end
 
     const clauseText = (c) => `
       <section class="consent-clause">
@@ -316,7 +317,7 @@ export function openConsentFlow({ orgId, people = [], signerPersonId = null, cov
 
     body.innerHTML = `
       <p class="consent-handover"><strong>Hand the device to the person signing.</strong>
-        They must read everything below, make their choices, and tick the box at the end.</p>
+        They must read everything below and make their choices. They agree to it by signing on the next screen.</p>
       <div class="consent-scroll" id="consent-scroll">${reading.map(clauseText).join('')}</div>
       <p class="muted" id="scroll-hint">Scroll to the end of the text to continue.</p>
 
@@ -335,13 +336,6 @@ export function openConsentFlow({ orgId, people = [], signerPersonId = null, cov
             </div>`).join('')}
         </div>` : ''}
 
-      <div class="consent-final">
-        ${required.map(c => `
-          <label class="consent-check consent-check-final">
-            <input type="checkbox" data-required="${escapeHtml(c.id)}" ${state.acknowledgements[c.id] ? 'checked' : ''}>
-            <span>${escapeHtml(c.checkboxLabel || 'I have read this document and I agree to it.')}</span>
-          </label>`).join('')}
-      </div>
       <div class="consent-actions">
         <button type="button" class="btn" id="back">Back</button>
         <button type="button" class="btn btn-primary" id="next" disabled>Next</button>
@@ -353,16 +347,12 @@ export function openConsentFlow({ orgId, people = [], signerPersonId = null, cov
 
     const refresh = () => {
       const atEnd = scroll.scrollTop + scroll.clientHeight >= scroll.scrollHeight - 4;
-      const allTicked = required.every(c => state.acknowledgements[c.id]);
-      next.disabled = !(atEnd && allTicked);
-      hint.textContent = !atEnd
-        ? 'Scroll to the end of the text to continue.'
-        : (allTicked ? '' : 'Tick the box below to continue.');
+      next.disabled = !atEnd;
+      hint.textContent = atEnd ? '' : 'Scroll to the end of the text to continue.';
     };
     scroll.addEventListener('scroll', refresh);
-    body.querySelectorAll('[data-optional], [data-required]').forEach(box => box.addEventListener('change', () => {
-      state.acknowledgements[box.dataset.optional || box.dataset.required] = box.checked;
-      refresh();
+    body.querySelectorAll('[data-optional]').forEach(box => box.addEventListener('change', () => {
+      state.acknowledgements[box.dataset.optional] = box.checked;
     }));
     refresh();
 
@@ -383,6 +373,12 @@ export function openConsentFlow({ orgId, people = [], signerPersonId = null, cov
             <option value="PARENT" ${state.relationshipToDependents === 'PARENT' ? 'selected' : ''}>Parent</option>
             <option value="LEGAL_GUARDIAN" ${state.relationshipToDependents === 'LEGAL_GUARDIAN' ? 'selected' : ''}>Legal guardian</option>
           </select></div>` : ''}
+      <div class="consent-final">
+        <p><strong>By signing below, I confirm that:</strong></p>
+        <ul>
+          ${requiredClauses(state.form).map(c => `<li>${escapeHtml(c.checkboxLabel || 'I have read this document and I agree to it.')}</li>`).join('')}
+        </ul>
+      </div>
       <label>Signature: sign with your finger or a mouse</label>
       <canvas id="signature-canvas" class="signature-canvas"></canvas>
       <button type="button" class="text-link" id="clear-signature">Clear signature</button>
@@ -458,6 +454,8 @@ export function openConsentFlow({ orgId, people = [], signerPersonId = null, cov
     for (const c of state.form.clauses) {
       if (c.type !== 'INFORMATION') acknowledgements[c.id] = !!state.acknowledgements[c.id];
     }
+    // the required agreement is made by signing, under the statement shown above the signature pad
+    for (const c of requiredClauses(state.form)) acknowledgements[c.id] = true;
 
     return {
       formVersionId: state.form.formVersionId,

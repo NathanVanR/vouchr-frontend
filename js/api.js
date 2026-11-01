@@ -243,6 +243,79 @@ export async function answerReferral(referralId, action, token) {
   return request(`/api/referrals/${referralId}/${action}`, { method: "POST", token });
 }
 
+// Partnerships: organisations agreed (by their admins) to work together; services each one offers
+export async function getOrgServices(orgId, token) {
+  return request(`/api/organizations/${orgId}/services`, { token });
+}
+
+export async function setOrgServices(orgId, services, token) {
+  return request(`/api/organizations/${orgId}/services`, {
+    method: "PUT",
+    body: JSON.stringify({ services }),
+    token
+  });
+}
+
+export async function getPartnerships(orgId, token) {
+  return request(`/api/organizations/${orgId}/partnerships`, { token });
+}
+
+export async function proposePartnership(orgId, partnerOrganizationId, token) {
+  return request(`/api/organizations/${orgId}/partnerships`, {
+    method: "POST",
+    body: JSON.stringify({ partnerOrganizationId }),
+    token
+  });
+}
+
+// action: "accept" | "decline" | "end"
+export async function answerPartnership(partnershipId, action, token) {
+  return request(`/api/partnerships/${partnershipId}/${action}`, { method: "POST", token });
+}
+
+// Care plan: services a family or person receives, from us or from a partner
+export async function getFamilyCarePlan(familyId, token) {
+  return request(`/api/families/${familyId}/care-plan`, { token });
+}
+
+export async function addFamilyCarePlanItem(familyId, payload, token) {
+  return request(`/api/families/${familyId}/care-plan`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token
+  });
+}
+
+export async function getPersonCarePlan(personId, token) {
+  return request(`/api/people/${personId}/care-plan`, { token });
+}
+
+export async function addPersonCarePlanItem(personId, payload, token) {
+  return request(`/api/people/${personId}/care-plan`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token
+  });
+}
+
+// direction: "incoming" (we provide: a name search, q needs 2+ characters) | "outgoing" (we asked others)
+export async function getCarePlanItems(orgId, direction, token, q = "") {
+  const search = q ? `&q=${encodeURIComponent(q)}` : "";
+  return request(`/api/organizations/${orgId}/care-plan-items?direction=${direction}${search}`, { token });
+}
+
+export async function checkInCarePlanItem(itemId, token) {
+  return request(`/api/care-plan-items/${itemId}/check-in`, { method: "POST", token });
+}
+
+export async function updateCarePlanStatus(itemId, status, note, token) {
+  return request(`/api/care-plan-items/${itemId}/status`, {
+    method: "POST",
+    body: JSON.stringify({ status, note: note || null }),
+    token
+  });
+}
+
 // Platform settings (platform admins only)
 export async function getPlatformMe(token) {
   return request("/api/platform/me", { token });

@@ -1,7 +1,7 @@
 import {
   getProject, updateProject, getBeneficiaries, addBeneficiary, getPeople
 } from './api.js';
-import { getAuthToken, escapeHtml, PROJECT_TYPE_LABELS } from './session.js';
+import { getAuthToken, escapeHtml, PROJECT_TYPE_LABELS, SERVICE_LABELS } from './session.js';
 
 // Type-specific details stored in the beneficiary's JSONB `attributes`.
 const EXTRA_FIELDS = {
@@ -46,6 +46,10 @@ function renderHeader() {
   badges.push(project.visibility === 'SHARED_WITH_HUB'
     ? '<span class="badge badge-active">Shared with hub</span>'
     : '<span class="badge badge-redeemed">Private</span>');
+  if (project.requiredServiceType) {
+    const label = (SERVICE_LABELS[project.requiredServiceType] || project.requiredServiceType).toLowerCase();
+    badges.push(`<span class="badge badge-redeemed">Requires ${escapeHtml(label)}${project.requirementEnforcement === 'BLOCK' ? ' (strict)' : ''}</span>`);
+  }
   document.getElementById('project-badges').innerHTML = badges.join(' ');
 
   const banner = document.getElementById('readonly-banner');
@@ -58,6 +62,15 @@ function renderHeader() {
   show('settings-section', project.canAdmin);
   document.getElementById('visibility-select').value = project.visibility;
   document.getElementById('status-select').value = project.status;
+  document.getElementById('required-service-select').value = project.requiredServiceType || '';
+  document.getElementById('enforcement-select').value = project.requirementEnforcement || 'WARN';
+
+  // Enrolling someone who is not receiving the required service needs a reason (or is refused outright)
+  const needsReason = project.requiredServiceType && project.requirementEnforcement !== 'BLOCK';
+  show('override-group', !!needsReason);
+  if (needsReason) {
+    document.getElementById('override-label').textContent = `Reason, if they are not receiving ${(SERVICE_LABELS[project.requiredServiceType] || '').toLowerCase()} (optional when they are)`;
+  }
   document.getElementById('visibility-hint').textContent = project.visibility === 'SHARED_WITH_HUB'
     ? 'Staff of every organisation in your hub can view the people in this project.'
     : 'Only staff of your organisation can view the people in this project.';
@@ -84,6 +97,7 @@ async function loadBeneficiaries() {
 
     const extras = EXTRA_FIELDS[project.projectType] || [];
     const showOrg = !project.canEdit;
+    const showRequirement = project.canEdit && !!project.requiredServiceType;
 
     container.innerHTML = `
       <div class="table-wrap">
@@ -95,6 +109,7 @@ async function loadBeneficiaries() {
               <th>Gender</th>
               ${extras.map(f => `<th>${escapeHtml(f.label)}</th>`).join('')}
               ${showOrg ? '<th>Organisation</th>' : '<th>Consent</th>'}
+              ${showRequirement ? '<th>Prerequisite</th>' : ''}
               <th>Enrolled by</th>
               <th>Added</th>
             </tr>
@@ -108,6 +123,9 @@ async function loadBeneficiaries() {
                 ${extras.map(f => `<td>${escapeHtml(p.attributes?.[f.key] ?? '—')}</td>`).join('')}
                 ${showOrg ? `<td>${escapeHtml(p.organizationName)}</td>`
                           : `<td>${escapeHtml(CONSENT_LABELS[p.consentStatus] || p.consentStatus)}</td>`}
+                ${showRequirement ? `<td>${p.requirementMet
+                  ? '<span class="badge badge-active">Met</span>'
+                  : `<span class="badge badge-expired" title="${escapeHtml(p.overrideReason || '')}">Not met</span>${p.overrideReason ? `<br><span class="muted">${escapeHtml(p.overrideReason)}</span>` : ''}`}</td>` : ''}
                 <td>${escapeHtml(p.registeredByName || '—')}</td>
                 <td>${p.createdDate ? new Date(p.createdDate).toLocaleDateString() : '—'}</td>
               </tr>`).join('')}
@@ -157,6 +175,10 @@ async function init() {
     saveSettings({ visibility: e.target.value }));
   document.getElementById('status-select').addEventListener('change', (e) =>
     saveSettings({ status: e.target.value }));
+  document.getElementById('required-service-select').addEventListener('change', (e) =>
+    saveSettings(e.target.value ? { requiredServiceType: e.target.value } : { clearRequiredService: true }));
+  document.getElementById('enforcement-select').addEventListener('change', (e) =>
+    saveSettings({ requirementEnforcement: e.target.value }));
 
   if (project.canEdit && project.status === 'ACTIVE') {
     await loadEnrolOptions();
@@ -177,7 +199,8 @@ async function init() {
     try {
       await addBeneficiary(projectId, {
         personId: document.getElementById('enrol-person').value,
-        attributes
+        attributes,
+        overrideReason: document.getElementById('override-reason').value.trim() || null
       }, await getAuthToken());
       form.reset();
       message.textContent = 'Enrolled.';

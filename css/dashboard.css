@@ -896,3 +896,19 @@ dialog button.text-link.is-danger:hover {
   background: var(--surface-hover);
   color: var(--text);
 }
+
+/* Partners: service checkboxes and care-plan items */
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.care-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0;
+}

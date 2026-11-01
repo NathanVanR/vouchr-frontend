@@ -106,11 +106,10 @@ export async function openPersonForm({ orgId, personId = null, people = [], onDo
     <h3>Registered under (optional)</h3>
     <p class="muted">Leave empty for a child with no parent on record.</p>
     <div class="form-row">
-      <div class="form-group"><label for="pf-primary">Adult</label>
-        <select id="pf-primary">
-          <option value="">—</option>
-          ${adults.map(p => `<option value="${escapeHtml(p.personId)}" ${v.primaryPersonId === p.personId ? 'selected' : ''}>${escapeHtml(p.name)} ${escapeHtml(p.surname)}</option>`).join('')}
-        </select></div>
+      <div class="form-group"><label for="pf-primary-search">Adult</label>
+        <div id="pf-primary-chosen"></div>
+        <input type="search" id="pf-primary-search" placeholder="Search adults by name…" autocomplete="off">
+        <ul class="search-results" id="pf-primary-results"></ul></div>
       <div class="form-group"><label for="pf-relationship">Relationship to them</label>
         <select id="pf-relationship">
           <option value="">—</option>
@@ -133,6 +132,43 @@ export async function openPersonForm({ orgId, personId = null, people = [], onDo
   const val = (id) => get(id).value.trim();
   const selectedCategory = () => body.querySelector('input[name="category"]:checked').value;
 
+  // Single search-and-pick for the adult this person is registered under
+  let primaryId = v.primaryPersonId && adults.some(p => p.personId === v.primaryPersonId) ? v.primaryPersonId : '';
+  const chosenEl = get('pf-primary-chosen');
+  const searchEl = get('pf-primary-search');
+  const resultsEl = get('pf-primary-results');
+  const fullName = (p) => `${p.name} ${p.surname}`;
+
+  function renderPrimary() {
+    const chosen = adults.find(p => p.personId === primaryId);
+    chosenEl.innerHTML = chosen
+      ? `<span class="mp-chip">${escapeHtml(fullName(chosen))}
+          <button type="button" data-clear aria-label="Remove ${escapeHtml(fullName(chosen))}">×</button></span>` : '';
+    searchEl.hidden = !!chosen;
+    const q = searchEl.value.trim().toLowerCase();
+    if (chosen || !q) { resultsEl.innerHTML = ''; return; }
+    const matches = adults.filter(p => fullName(p).toLowerCase().includes(q)).slice(0, 8);
+    resultsEl.innerHTML = matches.length
+      ? matches.map(p => `<li><span>${escapeHtml(fullName(p))}</span>
+          <button type="button" class="btn btn-ghost btn-sm" data-pick="${escapeHtml(p.personId)}">Choose</button></li>`).join('')
+      : '<li class="muted">No adult found.</li>';
+  }
+  searchEl.addEventListener('input', renderPrimary);
+  resultsEl.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-pick]');
+    if (!b) return;
+    primaryId = b.dataset.pick;
+    searchEl.value = '';
+    renderPrimary();
+  });
+  chosenEl.addEventListener('click', (e) => {
+    if (!e.target.closest('button[data-clear]')) return;
+    primaryId = '';
+    renderPrimary();
+    searchEl.focus();
+  });
+  renderPrimary();
+
   get('pf-id').addEventListener('input', () => {
     const dob = dateOfBirthFromSaId(get('pf-id').value.trim());
     if (dob && !get('pf-dob').value) get('pf-dob').value = dob;
@@ -148,7 +184,7 @@ export async function openPersonForm({ orgId, personId = null, people = [], onDo
       if (dob && !dateOfBirthMatchesId(dob, id)) return 'The date of birth does not match the ID number.';
     }
     if (val('pf-street') && !isValidStreetAddress(val('pf-street'))) return STREET_ADDRESS_MESSAGE;
-    if (val('pf-primary') && val('pf-primary') === personId) return 'A person cannot be registered under themselves.';
+    if (primaryId && primaryId === personId) return 'A person cannot be registered under themselves.';
     return '';
   }
 
@@ -162,7 +198,7 @@ export async function openPersonForm({ orgId, personId = null, people = [], onDo
       idNumber: text('pf-id'),
       dateOfBirth: get('pf-dob').value || null,
       phoneNumber: text('pf-phone'), email: text('pf-email'),
-      primaryPersonId: text('pf-primary') || null,
+      primaryPersonId: primaryId || null,
       relationship: text('pf-relationship') || null
     };
     const address = {

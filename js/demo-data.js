@@ -183,6 +183,13 @@ export async function demoRequest(endpoint, options = {}) {
   const state = load();
   state.families = state.families || [];
   state.referrals = state.referrals || [];
+  state.services = state.services || { [DEMO_ORG_ID]: ['FOOD'], [PARTNER_ORG_ID]: ['COUNSELLING', 'COURSE'] };
+  state.partnerships = state.partnerships || [{
+    partnershipId: 'demo-pt-1', requesterOrganizationId: DEMO_ORG_ID, requesterOrganizationName: 'Sunrise Community Trust',
+    partnerOrganizationId: PARTNER_ORG_ID, partnerOrganizationName: 'Hope Kitchen Collective', status: 'ACTIVE',
+    requestedByName: 'Demo Admin', createdDate: ago(30)
+  }];
+  state.carePlan = state.carePlan || [];
   const path = endpoint.split('?')[0];
   const query = new URLSearchParams(endpoint.split('?')[1] || '');
   let m;
@@ -204,7 +211,11 @@ export async function demoRequest(endpoint, options = {}) {
   } else if ((m = path.match(/^\/api\/projects\/([^/]+)$/))) {
     const project = state.projects.find(p => p.projectId === m[1]);
     if (!project) throw new Error('Project not found');
-    if (method === 'PATCH') Object.assign(project, body);
+    if (method === 'PATCH') {
+      const { clearRequiredService, ...changes } = body;
+      Object.assign(project, changes);
+      if (clearRequiredService) project.requiredServiceType = null;
+    }
     result = projectView(state, project);
   } else if ((m = path.match(/^\/api\/projects\/([^/]+)\/beneficiaries$/))) {
     const project = state.projects.find(p => p.projectId === m[1]);
@@ -308,6 +319,70 @@ export async function demoRequest(endpoint, options = {}) {
     const referral = state.referrals.find(r => r.referralId === m[1]);
     referral.status = { accept: 'ACCEPTED', decline: 'DECLINED', close: 'CLOSED' }[m[2]];
     result = referral;
+
+  // Partnerships and care plans
+  } else if ((m = path.match(/^\/api\/organizations\/([^/]+)\/services$/))) {
+    if (method === 'PUT') state.services[m[1]] = body.services;
+    result = state.services[m[1]] || [];
+  } else if ((m = path.match(/^\/api\/organizations\/([^/]+)\/partnerships$/))) {
+    if (method === 'POST') {
+      const target = state.searchableOrgs.find(o => o.organizationId === body.partnerOrganizationId);
+      const partnership = { partnershipId: nextId('demo-pt'), requesterOrganizationId: m[1],
+        requesterOrganizationName: state.organizations[m[1]].name, partnerOrganizationId: body.partnerOrganizationId,
+        partnerOrganizationName: target ? target.name : 'Partner organisation', status: 'PENDING',
+        requestedByName: 'Demo Admin', createdDate: new Date().toISOString() };
+      state.partnerships.push(partnership);
+      result = partnership;
+    } else {
+      result = state.partnerships
+        .filter(p => p.requesterOrganizationId === m[1] || p.partnerOrganizationId === m[1])
+        .map(p => ({ ...p, requesterServices: state.services[p.requesterOrganizationId] || [],
+          partnerServices: state.services[p.partnerOrganizationId] || [] }));
+    }
+  } else if ((m = path.match(/^\/api\/partnerships\/([^/]+)\/(accept|decline|end)$/))) {
+    const partnership = state.partnerships.find(p => p.partnershipId === m[1]);
+    partnership.status = { accept: 'ACTIVE', decline: 'DECLINED', end: 'ENDED' }[m[2]];
+    result = partnership;
+  } else if ((m = path.match(/^\/api\/families\/([^/]+)\/care-plan$/))) {
+    if (method === 'POST') {
+      const family = state.families.find(f => f.familyId === m[1]);
+      const provider = state.organizations[body.providerOrganizationId] || { name: 'Partner organisation' };
+      const item = { itemId: nextId('demo-ci'), familyId: m[1], familyName: family.name, requestingOrganizationId: DEMO_ORG_ID,
+        requestingOrganizationName: state.organizations[DEMO_ORG_ID].name, providerOrganizationId: body.providerOrganizationId,
+        providerOrganizationName: provider.name, internal: body.providerOrganizationId === DEMO_ORG_ID,
+        serviceType: body.serviceType, schedule: body.schedule || null, status: 'PENDING', canUpdateStatus: false,
+        createdDate: new Date().toISOString() };
+      state.carePlan.push(item);
+      result = item;
+    } else {
+      result = state.carePlan.filter(i => i.familyId === m[1]);
+    }
+  } else if ((m = path.match(/^\/api\/people\/([^/]+)\/care-plan$/))) {
+    if (method === 'POST') {
+      const person = state.people.find(p => p.personId === m[1]);
+      const provider = state.organizations[body.providerOrganizationId] || { name: 'Partner organisation' };
+      const item = { itemId: nextId('demo-ci'), personId: m[1], personName: `${person.name} ${person.surname}`,
+        requestingOrganizationId: DEMO_ORG_ID, requestingOrganizationName: state.organizations[DEMO_ORG_ID].name,
+        providerOrganizationId: body.providerOrganizationId, providerOrganizationName: provider.name,
+        internal: body.providerOrganizationId === DEMO_ORG_ID, serviceType: body.serviceType,
+        schedule: body.schedule || null, status: 'PENDING', canUpdateStatus: false, createdDate: new Date().toISOString() };
+      state.carePlan.push(item);
+      result = item;
+    } else {
+      result = state.carePlan.filter(i => i.personId === m[1]);
+    }
+  } else if ((m = path.match(/^\/api\/organizations\/([^/]+)\/care-plan-items$/))) {
+    // nobody else uses the demo, so nothing is ever asked of the demo organisation (and incoming is a search anyway)
+    result = query.get('direction') === 'outgoing' ? state.carePlan : [];
+  } else if ((m = path.match(/^\/api\/care-plan-items\/([^/]+)\/check-in$/))) {
+    const item = state.carePlan.find(i => i.itemId === m[1]);
+    if (item.status !== 'ATTENDING') throw new Error('Only someone who is attending can be checked in. Mark them as attending first.');
+    item.lastCheckedInAt = new Date().toISOString();
+    result = item;
+  } else if ((m = path.match(/^\/api\/care-plan-items\/([^/]+)\/status$/))) {
+    const item = state.carePlan.find(i => i.itemId === m[1]);
+    item.status = body.status;
+    result = item;
 
   // Staff & organisations
   } else if (path === '/api/organization/add-staff') {

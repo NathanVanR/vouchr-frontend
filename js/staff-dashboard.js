@@ -4,10 +4,12 @@ import {
   getHub, getHubProjects, leaveHub, searchHubOrgs, addOrgToHub,
   getPeople, withdrawConsent, getPlatformMe
 } from './api.js';
-import { getAuthToken, escapeHtml, PROJECT_TYPE_LABELS, RELATIONSHIP_LABELS } from './session.js';
+import { getAuthToken, escapeHtml, PROJECT_TYPE_LABELS, RELATIONSHIP_LABELS, SERVICE_LABELS } from './session.js';
 import { openConsentFlow, openConsentPdf } from './consent.js';
 import { openPersonForm } from './person-form.js';
 import { initFamilies, loadFamilies } from './families.js';
+import { initPartners, loadPartners } from './partners.js';
+import { openCarePlanDialog } from './care-plan.js';
 
 // ---------- Projects ----------
 
@@ -17,6 +19,9 @@ function projectCard(project, { showOrg = false } = {}) {
   badges.push(project.visibility === 'SHARED_WITH_HUB'
     ? '<span class="badge badge-active">Shared with hub</span>'
     : '<span class="badge badge-redeemed">Private</span>');
+  if (project.requiredServiceType) {
+    badges.push(`<span class="badge badge-redeemed">Requires ${escapeHtml((SERVICE_LABELS[project.requiredServiceType] || '').toLowerCase())}</span>`);
+  }
 
   return `
     <a class="project-card" href="project.html?id=${encodeURIComponent(project.projectId)}">
@@ -75,7 +80,10 @@ function familyOrder(people) {
 
 function personActions(p) {
   const id = escapeHtml(p.personId);
-  const buttons = [`<button type="button" class="text-link" data-action="edit" data-person="${id}">Edit</button>`];
+  const buttons = [
+    `<button type="button" class="text-link" data-action="edit" data-person="${id}">Edit</button>`,
+    `<button type="button" class="text-link" data-action="care-plan" data-person="${id}">Care plan</button>`
+  ];
   if (p.consentStatus === 'VALID') {
     // no signed copy once withdrawn: the record stays in the database as the audit trail
     buttons.push(`<button type="button" class="text-link" data-action="view" data-consent="${escapeHtml(p.consentId)}">View signed copy</button>`);
@@ -154,6 +162,11 @@ async function onPeopleAction(e, orgId, refresh) {
     openConsentPdf(button.dataset.consent);
   } else if (button.dataset.action === 'edit') {
     startPersonForm(orgId, button.dataset.person, refresh);
+  } else if (button.dataset.action === 'care-plan') {
+    const person = currentPeople.find(p => p.personId === button.dataset.person);
+    openCarePlanDialog({ orgId, subject: {
+      kind: 'person', id: person.personId, name: `${person.name} ${person.surname}`, familyId: person.familyId || null
+    } });
   } else if (button.dataset.action === 'capture') {
     startConsentFlow(orgId, { signerPersonId: button.dataset.person }, refresh);
   } else if (button.dataset.action === 'capture-child') {
@@ -352,7 +365,7 @@ async function addOrg(organizationId, button) {
 }
 
 // ---------- views & header menu ----------
-const VIEWS = { projects: 'Projects', people: 'People', families: 'Families', hubs: 'Hubs' };
+const VIEWS = { projects: 'Projects', people: 'People', families: 'Families', partners: 'Partners', hubs: 'Hubs' };
 
 function showView() {
   const name = VIEWS[location.hash.slice(1)] ? location.hash.slice(1) : 'projects';
@@ -445,6 +458,7 @@ async function initEmployeePortal() {
 
     loadProjects(orgId);
     refreshPeopleAndFamilies(orgId);
+    loadPartners(orgId, isAdmin);
     loadHub(org, orgId, isAdmin);
   };
 
@@ -464,7 +478,9 @@ async function initEmployeePortal() {
     const payload = {
       name: document.getElementById('project-name').value.trim(),
       projectType: document.getElementById('project-type').value,
-      description: document.getElementById('project-description').value.trim() || null
+      description: document.getElementById('project-description').value.trim() || null,
+      requiredServiceType: document.getElementById('project-required-service').value || null,
+      requirementEnforcement: document.getElementById('project-enforcement').value
     };
 
     showMessage('create-project-message', 'Adding project…');
@@ -491,6 +507,8 @@ async function initEmployeePortal() {
     refresh,
     showMessage
   });
+
+  initPartners({ getOrgId: () => activeOrgSelect.value, showMessage });
 
   // Create Hub form
   const createHubForm = document.getElementById('create-hub-form');

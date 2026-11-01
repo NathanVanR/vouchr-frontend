@@ -7,6 +7,8 @@ import {
   getReferrals, answerReferral, searchHubOrgs
 } from './api.js';
 import { getAuthToken, escapeHtml } from './session.js';
+import { openDialog } from './dialog.js';
+import { openCarePlanDialog } from './care-plan.js';
 import { memberPicker } from './member-picker.js';
 
 const REFERRAL_BADGES = {
@@ -20,29 +22,6 @@ const CONSENT_LABELS = {
 };
 
 let families = [];
-
-/** A small modal built the same way as the consent dialogs. */
-function openDialog(titleText, html) {
-  const dialog = document.createElement('dialog');
-  dialog.className = 'consent-dialog';
-  dialog.innerHTML = `
-    <div class="consent-header">
-      <h2>${escapeHtml(titleText)}</h2>
-      <button type="button" class="text-link" data-close>Close</button>
-    </div>
-    <div data-body>${html}</div>
-    <p class="message error" data-error hidden></p>`;
-  document.body.appendChild(dialog);
-  dialog.addEventListener('close', () => dialog.remove());
-  dialog.querySelector('[data-close]').addEventListener('click', () => dialog.close());
-  dialog.showModal();
-  const error = dialog.querySelector('[data-error]');
-  return {
-    dialog,
-    body: dialog.querySelector('[data-body]'),
-    showError: (text) => { error.textContent = text || ''; error.hidden = !text; }
-  };
-}
 
 const personName = (p) => `${p.name} ${p.surname}`;
 
@@ -71,6 +50,7 @@ function familyCard(f) {
       <div class="actions">
         <button type="button" class="text-link" data-action="edit-family" data-family="${escapeHtml(f.familyId)}">Edit</button>
         <button type="button" class="text-link" data-action="add-members" data-family="${escapeHtml(f.familyId)}">Add members</button>
+        ${closed ? '' : `<button type="button" class="text-link" data-action="care-plan" data-family="${escapeHtml(f.familyId)}">Care plan</button>`}
         ${closed ? '' : `<button type="button" class="text-link" data-action="refer" data-family="${escapeHtml(f.familyId)}">Refer to another organisation</button>`}
         <button type="button" class="text-link${closed ? '' : ' is-danger'}" data-action="${closed ? 'reopen' : 'close-family'}" data-family="${escapeHtml(f.familyId)}">${closed ? 'Reopen' : 'Close family'}</button>
       </div>
@@ -277,6 +257,9 @@ export function initFamilies({ getOrgId, getPeopleList, refresh, showMessage }) 
     if (action === 'edit-family') editFamilyDialog(family);
     else if (action === 'add-members') addMembersDialog(family);
     else if (action === 'refer') referDialog(family);
+    else if (action === 'care-plan') {
+      openCarePlanDialog({ orgId: getOrgId(), subject: { kind: 'family', id: family.familyId, name: family.name } });
+    }
     else if (action === 'view-referred') viewReferredFamily(b.dataset.family);
     else if (action === 'remove-member') {
       act(async () => changeFamilyMembers(b.dataset.family, { remove: [b.dataset.person] }, await token()));

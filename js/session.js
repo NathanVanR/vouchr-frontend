@@ -43,6 +43,22 @@ export function escapeHtml(text) {
     .replace(/"/g, '&quot;');
 }
 
+export const SERVICE_LABELS = {
+  FOOD: 'Food',
+  COUNSELLING: 'Counselling',
+  COURSE: 'Course / training',
+  OTHER: 'Other'
+};
+
+export const CARE_STATUS_LABELS = {
+  PENDING: 'Waiting for a reply',
+  ATTENDING: 'Attending',
+  COMPLETED: 'Completed',
+  LAPSED: 'Lapsed',
+  DECLINED: 'Declined',
+  CLOSED: 'Closed'
+};
+
 export const PROJECT_TYPE_LABELS = {
   FEEDING_SCHEME: 'Feeding scheme',
   GLASSES_DRIVE: 'Reading glasses drive',
