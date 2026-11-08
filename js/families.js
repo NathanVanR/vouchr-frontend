@@ -4,7 +4,7 @@
 // have a valid consent that allows sharing with partners.
 import {
   getFamilies, createFamily, getFamily, updateFamily, changeFamilyMembers, referFamily,
-  getReferrals, answerReferral, searchHubOrgs
+  getReferrals, answerReferral, searchOrgs
 } from './api.js';
 import { getAuthToken, escapeHtml } from './session.js';
 import { openDialog } from './dialog.js';
@@ -22,6 +22,28 @@ const CONSENT_LABELS = {
 };
 
 let families = [];
+let selectedFamilyId = null;
+
+function renderSelected() {
+  const list = document.getElementById('families-list');
+  const f = families.find(x => x.familyId === selectedFamilyId);
+  if (f) list.innerHTML = familyCard(f);
+  else {
+    selectedFamilyId = null;
+    list.innerHTML = `<p class="muted">${families.length ? 'Search for a family to see its members.' : 'No families yet.'}</p>`;
+  }
+}
+
+function renderResults() {
+  const results = document.getElementById('family-results');
+  const q = document.getElementById('family-search').value.trim().toLowerCase();
+  if (!q) { results.innerHTML = ''; return; }
+  const matches = families.filter(f => f.name.toLowerCase().includes(q));
+  results.innerHTML = matches.map(f => `<li>
+      <button type="button" class="text-link" data-action="select-family" data-family="${escapeHtml(f.familyId)}">${escapeHtml(f.name)}</button>
+      ${f.status === 'CLOSED' ? '<span class="badge badge-expired">Archived</span>' : ''}</li>`).join('')
+    || '<li class="muted">No families found.</li>';
+}
 
 const personName = (p) => `${p.name} ${p.surname}`;
 
@@ -31,7 +53,6 @@ function familyCard(f) {
       <span>${escapeHtml(personName(m))}
         <span class="mp-meta">${m.ageGroup === 'CHILD' ? 'child' : (m.ageGroup === 'ADULT' ? 'adult' : 'age unknown')}${m.school ? `, ${escapeHtml(m.school)}` : ''}
           · ${escapeHtml(CONSENT_LABELS[m.consentStatus] || m.consentStatus)}</span></span>
-      <button type="button" class="text-link is-danger" data-action="remove-member" data-family="${escapeHtml(f.familyId)}" data-person="${escapeHtml(m.personId)}">Remove</button>
     </li>`).join('');
   const referrals = (f.referrals || []).map(r => `
     <li class="family-row">
@@ -43,16 +64,15 @@ function familyCard(f) {
   const closed = f.status === 'CLOSED';
   return `
     <article class="family-card">
-      <h3>${escapeHtml(f.name)} ${closed ? '<span class="badge badge-expired">Closed</span>' : ''}</h3>
+      <h3>${escapeHtml(f.name)} ${closed ? '<span class="badge badge-expired">Archived</span>' : ''}</h3>
       <p>${f.needs ? `<strong>Needs:</strong> ${escapeHtml(f.needs)}` : '<span class="muted">No needs recorded yet.</span>'}</p>
       <ul class="family-list">${members || '<li class="muted">No members yet.</li>'}</ul>
       ${referrals ? `<h4>Referrals</h4><ul class="family-list">${referrals}</ul>` : ''}
       <div class="actions">
         <button type="button" class="text-link" data-action="edit-family" data-family="${escapeHtml(f.familyId)}">Edit</button>
-        <button type="button" class="text-link" data-action="add-members" data-family="${escapeHtml(f.familyId)}">Add members</button>
         ${closed ? '' : `<button type="button" class="text-link" data-action="care-plan" data-family="${escapeHtml(f.familyId)}">Care plan</button>`}
         ${closed ? '' : `<button type="button" class="text-link" data-action="refer" data-family="${escapeHtml(f.familyId)}">Refer to another organisation</button>`}
-        <button type="button" class="text-link${closed ? '' : ' is-danger'}" data-action="${closed ? 'reopen' : 'close-family'}" data-family="${escapeHtml(f.familyId)}">${closed ? 'Reopen' : 'Close family'}</button>
+        <button type="button" class="text-link${closed ? '' : ' is-danger'}" data-action="${closed ? 'reopen' : 'close-family'}" data-family="${escapeHtml(f.familyId)}">${closed ? 'Restore family' : 'Archive family'}</button>
       </div>
     </article>`;
 }
@@ -83,7 +103,8 @@ export async function loadFamilies(orgId) {
     const token = await getAuthToken();
     const [fams, referrals] = await Promise.all([getFamilies(orgId, token), getReferrals(orgId, 'incoming', token)]);
     families = fams;
-    list.innerHTML = fams.length ? fams.map(familyCard).join('') : '<p class="muted">No families yet.</p>';
+    renderSelected();
+    if (!selectedFamilyId) renderResults();
     incoming.innerHTML = referrals.length
       ? `<div class="table-wrap"><table class="data-table">
           <thead><tr><th>Family</th><th>Needs and reason</th><th>Status</th><th></th></tr></thead>
@@ -104,6 +125,7 @@ export function initFamilies({ getOrgId, getPeopleList, refresh, showMessage }) 
   const token = () => getAuthToken();
 
   document.getElementById('new-family-btn').addEventListener('click', () => newFamilyDialog());
+  document.getElementById('family-search').addEventListener('input', renderResults);
 
   function peopleWithoutFamily() {
     return getPeopleList().filter(p => !p.familyId);
@@ -141,38 +163,53 @@ export function initFamilies({ getOrgId, getPeopleList, refresh, showMessage }) 
   }
 
   function editFamilyDialog(family) {
+    const current = family.members || [];
     const { dialog, body, showError } = openDialog('Edit family', `
       <div class="form-group"><label for="ef-name">Family Surname</label>
         <input type="text" id="ef-name" maxlength="255" value="${escapeHtml(family.name)}"></div>
       <div class="form-group"><label for="ef-needs">What the family needs</label>
         <textarea id="ef-needs" rows="4" maxlength="4000">${escapeHtml(family.needs || '')}</textarea></div>
+      <h3>Members</h3>
+      <ul class="family-list" id="ef-current"></ul>
+      <h4>Add members</h4>
+      <div id="ef-add"></div>
       <div class="consent-actions"><button type="button" class="btn btn-primary" id="ef-save">Save</button></div>`);
+
+    // removals are only staged here and applied on Save
+    const removing = new Set();
+    const currentList = body.querySelector('#ef-current');
+    const renderCurrent = () => {
+      currentList.innerHTML = current.map(m => {
+        const out = removing.has(m.personId);
+        return `<li class="family-row">
+          <span${out ? ' style="text-decoration: line-through;" class="muted"' : ''}>${escapeHtml(personName(m))}</span>
+          <button type="button" class="text-link${out ? '' : ' is-danger'}" data-toggle="${escapeHtml(m.personId)}">${out ? 'Undo' : 'Remove'}</button>
+        </li>`;
+      }).join('') || '<li class="muted">No members yet.</li>';
+    };
+    renderCurrent();
+    currentList.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-toggle]');
+      if (!b) return;
+      if (removing.has(b.dataset.toggle)) removing.delete(b.dataset.toggle);
+      else removing.add(b.dataset.toggle);
+      renderCurrent();
+    });
+    const picker = pickPeople(body.querySelector('#ef-add'));
+
     body.querySelector('#ef-save').addEventListener('click', async () => {
       try {
         await updateFamily(family.familyId, {
           name: body.querySelector('#ef-name').value, needs: body.querySelector('#ef-needs').value
         }, await token());
+        const add = picker.selectedIds();
+        if (add.length || removing.size) {
+          await changeFamilyMembers(family.familyId, { add, remove: [...removing] }, await token());
+        }
         dialog.close();
         msg('Family saved.');
         refresh();
       } catch (err) { showError(err.message || 'Could not save the family'); }
-    });
-  }
-
-  function addMembersDialog(family) {
-    const { dialog, body, showError } = openDialog(`Add members to ${family.name}`, `
-      <div id="am-members"></div>
-      <div class="consent-actions"><button type="button" class="btn btn-primary" id="am-save">Add</button></div>`);
-    const picker = pickPeople(body.querySelector('#am-members'));
-    body.querySelector('#am-save').addEventListener('click', async () => {
-      const ids = picker.selectedIds();
-      if (!ids.length) return showError('Search for and add at least one person.');
-      try {
-        await changeFamilyMembers(family.familyId, { add: ids }, await token());
-        dialog.close();
-        msg('Members added.');
-        refresh();
-      } catch (err) { showError(err.message || 'Could not add members'); }
     });
   }
 
@@ -196,7 +233,7 @@ export function initFamilies({ getOrgId, getPeopleList, refresh, showMessage }) 
       if (q.length < 2) { results.innerHTML = ''; return; }
       timer = setTimeout(async () => {
         try {
-          const orgs = await searchHubOrgs(q, await token());
+          const orgs = await searchOrgs(q, await token(), getOrgId());
           results.innerHTML = orgs.map(o => `<li><span>${escapeHtml(o.name)}${o.city ? ` <span class="muted">${escapeHtml(o.city)}</span>` : ''}</span>
             <button type="button" class="btn" data-org="${escapeHtml(o.organizationId)}" data-name="${escapeHtml(o.name)}">Choose</button></li>`).join('')
             || '<li class="muted">No organisations found.</li>';
@@ -254,21 +291,23 @@ export function initFamilies({ getOrgId, getPeopleList, refresh, showMessage }) 
     const family = families.find(f => f.familyId === b.dataset.family);
     const { action } = b.dataset;
 
-    if (action === 'edit-family') editFamilyDialog(family);
-    else if (action === 'add-members') addMembersDialog(family);
+    if (action === 'select-family') {
+      selectedFamilyId = b.dataset.family;
+      document.getElementById('family-search').value = family.name;
+      document.getElementById('family-results').innerHTML = '';
+      renderSelected();
+    } else if (action === 'edit-family') editFamilyDialog(family);
     else if (action === 'refer') referDialog(family);
     else if (action === 'care-plan') {
       openCarePlanDialog({ orgId: getOrgId(), subject: { kind: 'family', id: family.familyId, name: family.name } });
     }
     else if (action === 'view-referred') viewReferredFamily(b.dataset.family);
-    else if (action === 'remove-member') {
-      act(async () => changeFamilyMembers(b.dataset.family, { remove: [b.dataset.person] }, await token()));
-    } else if (action === 'close-family') {
-      if (confirm(`Close "${family.name}"? Any open referrals will end and the other organisations lose access.`)) {
-        act(async () => updateFamily(family.familyId, { status: 'CLOSED' }, await token()), 'Family closed.');
+    else if (action === 'close-family') {
+      if (confirm(`Archive the ${family.name} family? Any open referrals will end and the other organisations lose access. You can restore it later.`)) {
+        act(async () => updateFamily(family.familyId, { status: 'CLOSED' }, await token()), 'Family archived.');
       }
     } else if (action === 'reopen') {
-      act(async () => updateFamily(family.familyId, { status: 'ACTIVE' }, await token()), 'Family reopened.');
+      act(async () => updateFamily(family.familyId, { status: 'ACTIVE' }, await token()), 'Family restored.');
     } else if (['accept', 'decline'].includes(action)) {
       act(async () => answerReferral(b.dataset.referral, action, await token()),
         action === 'accept' ? 'Referral accepted.' : 'Referral declined.');

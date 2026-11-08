@@ -48,14 +48,6 @@
           <h2>Project settings</h2>
           <div class="form-row" style="margin-top: 1rem;">
             <div class="form-group">
-              <label for="visibility-select">Who can see this project's people?</label>
-              <select id="visibility-select">
-                <option value="PRIVATE">Only our organisation</option>
-                <option value="SHARED_WITH_HUB">Our organisation and our hub (view only)</option>
-              </select>
-              <p class="muted" id="visibility-hint" style="margin-top: 0.5rem;"></p>
-            </div>
-            <div class="form-group">
               <label for="status-select">Status</label>
               <select id="status-select">
                 <option value="ACTIVE">Active</option>
@@ -66,14 +58,8 @@
           <div class="form-row">
             <div class="form-group">
               <label for="required-service-select">Must be receiving before enrolment</label>
-              <select id="required-service-select">
-                <option value="">No prerequisite</option>
-                <option value="COUNSELLING">Counselling</option>
-                <option value="COURSE">A course / training</option>
-                <option value="FOOD">Food</option>
-                <option value="OTHER">Other service</option>
-              </select>
-              <p class="muted" style="margin-top: 0.5rem;">Met when the person (or their family) has this service on their care plan, from us or a partner, and is attending or has completed it.</p>
+              <select id="required-service-select"></select>
+              <p class="muted" style="margin-top: 0.5rem;">Checked when aid is given. Met when the person (or their family) has this service on their care plan, from us or a partner, and is attending or has completed it.</p>
             </div>
             <div class="form-group">
               <label for="enforcement-select">If they are not</label>
@@ -83,30 +69,69 @@
               </select>
             </div>
           </div>
-          <p id="settings-message" class="muted"></p>
+          <button type="button" id="save-settings" class="btn btn-primary">Save</button>
+          <p id="settings-message" class="muted" style="margin-top: 0.75rem;"></p>
+        </section>
+
+        <!-- Other organisations working on this project -->
+        <section id="participants-section" class="auth-card" style="margin-top: 1.5rem;" hidden>
+          <h2>Partners</h2>
+          <p class="muted">
+            Other organisations can work on this project too. Only partner organisations can be invited, and they enrol
+            their own people. Each organisation sees the other's people only when those people agreed to be shared with partners.
+          </p>
+          <ul class="family-list" id="participants-list"></ul>
+          <div id="invite-box" hidden style="margin-top: 1rem;">
+            <div class="form-group">
+              <label for="invite-org">Invite a partner organisation</label>
+              <select id="invite-org"></select>
+            </div>
+            <button type="button" id="invite-btn" class="btn btn-primary">Send invitation</button>
+          </div>
+          <p id="participants-message" class="muted" style="margin-top: 0.75rem;"></p>
         </section>
 
         <!-- Enrol a registered person -->
         <section id="add-section" class="auth-card" style="margin-top: 1.5rem;" hidden>
           <h2>Enrol a person</h2>
-          <p class="muted">
-            Only people with a signed consent can be enrolled. Add people, or capture a missing consent,
-            from the <a href="staff-dashboard.html">dashboard</a>.
-          </p>
-          <p id="enrol-hint" class="muted"></p>
-          <form id="enrol-form" class="auth-form" style="margin-top: 1rem;">
-            <div class="form-group">
-              <label for="enrol-person">Person</label>
-              <select id="enrol-person" required></select>
-            </div>
+          <p class="muted" id="enrol-org"></p>
+          <div class="form-group">
+            <label for="enrol-search">Find a person</label>
+            <input type="search" id="enrol-search" class="mp-input" placeholder="Search by name…" autocomplete="off">
+          </div>
+          <ul class="search-results" id="enrol-results"></ul>
+          <div id="enrol-extra" hidden style="margin-top: 1rem;">
+            <p id="enrol-chosen"></p>
             <div class="form-row" id="extra-fields"></div>
-            <div class="form-group" id="override-group" hidden>
-              <label for="override-reason" id="override-label">Reason</label>
-              <input type="text" id="override-reason" maxlength="500">
-            </div>
-            <button type="submit" class="btn btn-primary">Enrol</button>
-          </form>
+            <button type="button" id="enrol-confirm" class="btn btn-primary">Enrol</button>
+            <button type="button" id="enrol-cancel" class="btn btn-ghost">Cancel</button>
+          </div>
           <p id="add-message" class="muted" style="margin-top: 0.75rem;"></p>
+        </section>
+
+        <!-- Giving aid: sessions, and who received aid in each -->
+        <section id="aid-section" class="auth-card" style="margin-top: 1.5rem;" hidden>
+          <h2>Aid sessions</h2>
+          <p class="muted">
+            A session is one occasion on which aid is given, such as a weekly soup run. Start one, then tick off each
+            enrolled person who receives aid.
+          </p>
+          <div id="session-start" hidden>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="session-date">Date</label>
+                <input type="date" id="session-date">
+              </div>
+              <div class="form-group">
+                <label for="session-label">Name (optional)</label>
+                <input type="text" id="session-label" maxlength="100" placeholder="e.g. Tuesday soup run">
+              </div>
+            </div>
+            <button type="button" id="session-start-btn" class="btn btn-primary">Start session</button>
+          </div>
+          <p id="session-message" class="muted" style="margin-top: 0.75rem;"></p>
+          <ul class="family-list" id="sessions-list"></ul>
+          <div id="session-detail" style="margin-top: 1rem;"></div>
         </section>
 
         <!-- People -->

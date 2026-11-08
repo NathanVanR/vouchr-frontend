@@ -9,7 +9,7 @@ import {
   getFamily, getFamilyCarePlan, addFamilyCarePlanItem, getPersonCarePlan, addPersonCarePlanItem,
   updateCarePlanStatus, getPartnerships, getOrgServices
 } from './api.js';
-import { getAuthToken, escapeHtml, SERVICE_LABELS, CARE_STATUS_LABELS } from './session.js';
+import { getAuthToken, escapeHtml, SERVICE_LABELS, CARE_STATUS_LABELS, serviceName } from './session.js';
 import { openDialog } from './dialog.js';
 
 const OPEN_STATUSES = ['PENDING', 'ATTENDING', 'LAPSED'];
@@ -21,7 +21,7 @@ const checkInLabel = (i) => i.lastCheckedInAt
 function itemRow(i, { closable }) {
   return `
     <li class="care-item">
-      <span><strong>${escapeHtml(SERVICE_LABELS[i.serviceType] || i.serviceType)}</strong>
+      <span><strong>${escapeHtml(serviceName(i.serviceType, i.serviceLabel))}</strong>
         — ${i.internal ? 'us' : escapeHtml(i.providerOrganizationName)}
         <span class="mp-meta">${escapeHtml(CARE_STATUS_LABELS[i.status] || i.status)}${i.schedule ? ` · ${escapeHtml(i.schedule)}` : ''}
           · ${escapeHtml(checkInLabel(i))}</span></span>
@@ -83,6 +83,8 @@ export async function openCarePlanDialog({ orgId, subject }) {
           <div class="form-group"><label for="cp-service">Service and provider</label>
             <select id="cp-service">${options.map((o, n) =>
               `<option value="${n}">${escapeHtml(o.label)}${onFamilyPlan(o) ? ' (already on the family plan)' : ''}</option>`).join('')}</select></div>
+          <div class="form-group" id="cp-label-group" hidden><label for="cp-label">What is the service?</label>
+            <input type="text" id="cp-label" maxlength="100" placeholder="e.g. Funeral costs"></div>
           <div class="form-group"><label for="cp-schedule">When (optional)</label>
             <input type="text" id="cp-schedule" maxlength="500" placeholder="e.g. Tuesdays 18:00"></div>
           <div class="consent-actions"><button type="button" class="btn btn-primary" id="cp-add">Add to plan</button></div>`
@@ -96,11 +98,19 @@ export async function openCarePlanDialog({ orgId, subject }) {
         } catch (err) { showError(err.message || 'Could not remove the item'); }
       }));
       const add = body.querySelector('#cp-add');
+      const picker = body.querySelector('#cp-service');
+      const syncLabel = () => {
+        // "Other" needs a name, so ask for one
+        const group = body.querySelector('#cp-label-group');
+        if (group && picker) group.hidden = options[Number(picker.value)].type !== 'OTHER';
+      };
+      if (picker) { picker.addEventListener('change', syncLabel); syncLabel(); }
       if (add) add.addEventListener('click', async () => {
         const chosen = options[Number(body.querySelector('#cp-service').value)];
         const payload = {
           providerOrganizationId: chosen.orgId,
           serviceType: chosen.type,
+          serviceLabel: chosen.type === 'OTHER' ? body.querySelector('#cp-label').value.trim() || null : null,
           schedule: body.querySelector('#cp-schedule').value.trim() || null
         };
         try {

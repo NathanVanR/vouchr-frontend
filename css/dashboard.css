@@ -770,7 +770,7 @@ dialog button.text-link.is-danger:hover {
   color: var(--text-muted);
 }
 
-/* search-and-pick lists (hub organisation search, family members, children on a consent, referrals) */
+/* search-and-pick lists (organisation search, family members, children on a consent, referrals) */
 .search-results {
   list-style: none;
   margin: 0.5rem 0 0;

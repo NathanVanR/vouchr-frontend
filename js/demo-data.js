@@ -6,7 +6,6 @@ const STATE_KEY = 'vouchrDemoState';
 
 export const DEMO_ORG_ID = 'demo-org-1';
 const PARTNER_ORG_ID = 'demo-org-2';
-const HUB_ID = 'demo-hub-1';
 
 const USER_ROLES = { [DEMO_ORG_ID]: 'ADMIN', 'demo-org-3': 'STAFF' };
 
@@ -16,25 +15,24 @@ function seed() {
   return {
     seq: 100,
     organizations: {
-      [DEMO_ORG_ID]: { name: 'Sunrise Community Trust', hubId: HUB_ID, hubName: 'Cape Flats Relief Network' },
-      [PARTNER_ORG_ID]: { name: 'Hope Kitchen Collective', hubId: HUB_ID, hubName: 'Cape Flats Relief Network' },
-      'demo-org-3': { name: 'Harbour Food Bank', hubId: null, hubName: null }
+      [DEMO_ORG_ID]: { name: 'Sunrise Community Trust' },
+      [PARTNER_ORG_ID]: { name: 'Hope Kitchen Collective' },
+      'demo-org-3': { name: 'Harbour Food Bank' }
     },
-    hub: { hubId: HUB_ID, hubName: 'Cape Flats Relief Network', city: 'Cape Town', orgIds: [DEMO_ORG_ID, PARTNER_ORG_ID] },
     searchableOrgs: [
-      { organizationId: 'demo-org-4', name: 'Ubuntu Learning Project', city: 'Khayelitsha', alreadyInHub: false },
-      { organizationId: 'demo-org-5', name: 'Bright Futures Foundation', city: 'Mitchells Plain', alreadyInHub: false },
-      { organizationId: 'demo-org-6', name: 'Table Bay Soup Kitchen', city: 'Cape Town', alreadyInHub: true }
+      { organizationId: 'demo-org-4', name: 'Ubuntu Learning Project', city: 'Khayelitsha' },
+      { organizationId: 'demo-org-5', name: 'Bright Futures Foundation', city: 'Mitchells Plain' },
+      { organizationId: 'demo-org-6', name: 'Table Bay Soup Kitchen', city: 'Cape Town' }
     ],
     projects: [
       { projectId: 'demo-proj-1', organizationId: DEMO_ORG_ID, name: 'Winter feeding scheme', projectType: 'FEEDING_SCHEME',
-        description: 'Daily hot meals for learners at three local primary schools.', status: 'ACTIVE', visibility: 'SHARED_WITH_HUB' },
+        description: 'Daily hot meals for learners at three local primary schools.', status: 'ACTIVE' },
       { projectId: 'demo-proj-2', organizationId: DEMO_ORG_ID, name: 'Reading glasses drive', projectType: 'GLASSES_DRIVE',
-        description: 'Eye tests and free reading glasses for pensioners.', status: 'ACTIVE', visibility: 'PRIVATE' },
+        description: 'Eye tests and free reading glasses for pensioners.', status: 'ACTIVE' },
       { projectId: 'demo-proj-3', organizationId: DEMO_ORG_ID, name: 'Back-to-school supplies 2025', projectType: 'SCHOOL_SUPPLIES_DRIVE',
-        description: 'Stationery packs for the start of the school year.', status: 'ARCHIVED', visibility: 'PRIVATE' },
+        description: 'Stationery packs for the start of the school year.', status: 'ARCHIVED' },
       { projectId: 'demo-proj-4', organizationId: PARTNER_ORG_ID, name: 'Saturday soup run', projectType: 'FEEDING_SCHEME',
-        description: 'Community soup kitchen at the Hope Kitchen hall.', status: 'ACTIVE', visibility: 'SHARED_WITH_HUB' }
+        description: 'Community soup kitchen at the Hope Kitchen hall.', status: 'ACTIVE' }
     ],
     people: [
       person('demo-p-1', 'Thandiwe', 'Mokoena', '1985-03-14', 'F', 'ADULT', 'VALID', 'demo-c-1', true),
@@ -104,7 +102,7 @@ export function demoUserOrganizations() {
   const { organizations } = load();
   return Object.fromEntries(Object.entries(USER_ROLES).map(([id, role]) => {
     const org = organizations[id];
-    return [id, { name: org.name, role, ...(org.hubId && { hubId: org.hubId, hubName: org.hubName }) }];
+    return [id, { name: org.name, role }];
   }));
 }
 
@@ -124,7 +122,7 @@ const CONSENT_FORM = {
     { id: 'c-rights', type: 'INFORMATION', title: 'Your rights',
       text: 'You may ask to see, correct or delete your information, or withdraw this consent at any time, without losing access to other help.\n\n(Keep scrolling: the Continue button unlocks once you reach the end.)\n\n\n\n\nThank you for reading.', mandatory: false },
     { id: 'c-partner', type: 'PARTNER_SHARING', title: 'Sharing with partner organisations',
-      text: 'May other organisations in our hub see that you are enrolled in a shared project?', mandatory: false },
+      text: 'May partner organisations working with us on a project see that you are enrolled in it?', mandatory: false },
     { id: 'c-referrals', type: 'REFERRALS', title: 'Referrals',
       text: 'May we refer you to another organisation that could help you?', mandatory: false },
     { id: 'c-agree', type: 'ACKNOWLEDGEMENT', title: null,
@@ -162,12 +160,14 @@ function notFound(endpoint) {
   throw new Error(`The demo does not support ${endpoint}`);
 }
 
+// The demo organisation owns most projects and has joined one run by its partner (view only here).
 function projectView(state, p) {
   const own = p.organizationId === DEMO_ORG_ID;
   return {
     ...p,
     organizationName: state.organizations[p.organizationId]?.name || '',
     canEdit: own,
+    participant: !own,
     canAdmin: own
   };
 }
@@ -201,10 +201,11 @@ export async function demoRequest(endpoint, options = {}) {
   // Projects
   if ((m = path.match(/^\/api\/organizations\/([^/]+)\/projects$/))) {
     if (method === 'GET') {
-      result = state.projects.filter(p => p.organizationId === m[1]).map(p => projectView(state, p));
+      result = state.projects.filter(p => p.organizationId === m[1] || (m[1] === DEMO_ORG_ID && p.projectId === 'demo-proj-4'))
+        .map(p => projectView(state, p));
     } else {
       const project = { projectId: nextId('demo-proj'), organizationId: m[1], name: body.name, projectType: body.projectType,
-        description: body.description, status: 'ACTIVE', visibility: 'PRIVATE' };
+        typeLabel: body.typeLabel || null, description: body.description, status: 'ACTIVE' };
       state.projects.push(project);
       result = projectView(state, project);
     }
@@ -233,32 +234,16 @@ export async function demoRequest(endpoint, options = {}) {
         .map(b => ({ ...b, organizationName: state.organizations[project.organizationId].name, registeredByName: 'Partner staff' }));
     }
 
-  // Hubs
-  } else if (path === '/api/hub/create-hub' && method === 'POST') {
-    const org = state.organizations[body.organizationId];
-    state.hub = { hubId: HUB_ID, hubName: body.hubName || org.name, city: body.city || 'Cape Town', orgIds: [body.organizationId] };
-    org.hubId = HUB_ID;
-    org.hubName = state.hub.hubName;
-    result = { hubId: HUB_ID, hubName: state.hub.hubName };
-  } else if (path === '/api/hub/search-orgs') {
+  // Finding organisations, and projects other organisations invited us to (none in the demo)
+  } else if (path === '/api/organizations/search') {
     const q = (query.get('q') || '').toLowerCase();
     result = state.searchableOrgs.filter(o => o.name.toLowerCase().includes(q));
-  } else if ((m = path.match(/^\/api\/hub\/([^/]+)\/projects$/))) {
-    result = state.projects.filter(p => p.organizationId !== DEMO_ORG_ID && p.visibility === 'SHARED_WITH_HUB' && state.hub.orgIds.includes(p.organizationId))
-      .map(p => projectView(state, p));
-  } else if ((m = path.match(/^\/api\/hub\/([^/]+)\/add-org$/))) {
-    state.hub.orgIds.push(body.organizationId);
-    result = {};
-  } else if ((m = path.match(/^\/api\/hub\/([^/]+)\/organizations\/([^/]+)$/)) && method === 'DELETE') {
-    state.hub.orgIds = state.hub.orgIds.filter(id => id !== m[2]);
-    state.organizations[m[2]].hubId = null;
-    state.organizations[m[2]].hubName = null;
-    result = {};
-  } else if ((m = path.match(/^\/api\/hub\/([^/]+)$/))) {
-    result = {
-      hubId: state.hub.hubId, hubName: state.hub.hubName, city: state.hub.city,
-      organizations: state.hub.orgIds.map(id => ({ organizationId: id, name: state.organizations[id]?.name || 'Partner organisation' }))
-    };
+  } else if (path.match(/^\/api\/organizations\/([^/]+)\/project-invitations$/)) {
+    result = [];
+  } else if (path.match(/^\/api\/projects\/([^/]+)\/participants$/)) {
+    result = [];
+  } else if (path.match(/^\/api\/projects\/([^/]+)\/sessions$/) && method === 'GET') {
+    result = [];
 
   // People & consent
   } else if ((m = path.match(/^\/api\/organizations\/([^/]+)\/people$/))) {

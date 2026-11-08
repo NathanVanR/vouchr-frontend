@@ -4,9 +4,9 @@
 // A partner only ever sees a person's name and the requested service, never anything about their other help.
 import {
   getOrgServices, setOrgServices, getPartnerships, proposePartnership, answerPartnership,
-  getCarePlanItems, updateCarePlanStatus, checkInCarePlanItem, searchHubOrgs
+  getCarePlanItems, updateCarePlanStatus, checkInCarePlanItem, searchOrgs
 } from './api.js';
-import { getAuthToken, escapeHtml, SERVICE_LABELS, CARE_STATUS_LABELS } from './session.js';
+import { getAuthToken, escapeHtml, SERVICE_LABELS, CARE_STATUS_LABELS, serviceName } from './session.js';
 
 const PARTNERSHIP_BADGES = {
   PENDING: '<span class="badge badge-redeemed">Waiting for a reply</span>',
@@ -84,7 +84,7 @@ function incomingCard(item) {
     <article class="family-card">
       <h3>${who}</h3>
       <p class="muted">from ${escapeHtml(item.requestingOrganizationName)}</p>
-      <p><strong>${escapeHtml(SERVICE_LABELS[item.serviceType] || item.serviceType)}</strong>${item.schedule ? ` · ${escapeHtml(item.schedule)}` : ''}
+      <p><strong>${escapeHtml(serviceName(item.serviceType, item.serviceLabel))}</strong>${item.schedule ? ` · ${escapeHtml(item.schedule)}` : ''}
         — ${escapeHtml(CARE_STATUS_LABELS[item.status] || item.status)}</p>
       <p class="muted">${escapeHtml(checkInText(item))}</p>
       <div class="actions">${checkIn}${steps}${closable}</div>
@@ -173,7 +173,7 @@ export function initPartners({ getOrgId, showMessage }) {
     if (q.length < 2) { results.innerHTML = ''; return; }
     timer = setTimeout(async () => {
       try {
-        const orgs = await searchHubOrgs(q, await getAuthToken());
+        const orgs = await searchOrgs(q, await getAuthToken(), currentOrgId);
         results.innerHTML = orgs.map(o => `<li><span>${escapeHtml(o.name)}${o.city ? ` <span class="muted">${escapeHtml(o.city)}</span>` : ''}</span>
           <button type="button" class="btn" data-action="propose" data-org="${escapeHtml(o.organizationId)}">Propose partnership</button></li>`).join('')
           || '<li class="muted">No organisations found.</li>';

@@ -43,12 +43,41 @@ export function escapeHtml(text) {
     .replace(/"/g, '&quot;');
 }
 
+// The shared service catalogue (matches the backend ServiceType enum). Offered by organisations, delivered through
+// care plan items and required by projects, so every list and label in the app comes from here.
 export const SERVICE_LABELS = {
   FOOD: 'Food',
+  CLOTHING: 'Clothing',
   COUNSELLING: 'Counselling',
   COURSE: 'Course / training',
+  DOCTOR_VISIT: 'Doctor visit',
+  NURSE_VISIT: 'Nurse visit',
+  BUDGETING_HELP: 'Help with budgeting',
   OTHER: 'Other'
 };
+
+/** The services a project can require someone to be receiving before they get aid. */
+export const PREREQUISITE_SERVICES = {
+  COUNSELLING: SERVICE_LABELS.COUNSELLING,
+  COURSE: SERVICE_LABELS.COURSE,
+  BUDGETING_HELP: SERVICE_LABELS.BUDGETING_HELP
+};
+
+/** A service's name; "Other" shows the free-text label somebody typed in. */
+export function serviceName(type, label) {
+  return type === 'OTHER' && label ? label : (SERVICE_LABELS[type] || type);
+}
+
+/** A project's kind; "Other" shows the free-text label somebody typed in. */
+export function projectTypeName(type, label) {
+  return type === 'OTHER' && label ? label : (PROJECT_TYPE_LABELS[type] || type);
+}
+
+/** <option> tags for a labels object, e.g. fillSelect(select, SERVICE_LABELS, 'No prerequisite'). */
+export function fillSelect(select, labels, emptyLabel = null) {
+  select.innerHTML = (emptyLabel === null ? '' : `<option value="">${escapeHtml(emptyLabel)}</option>`)
+    + Object.entries(labels).map(([value, label]) => `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`).join('');
+}
 
 export const CARE_STATUS_LABELS = {
   PENDING: 'Waiting for a reply',
@@ -63,6 +92,7 @@ export const PROJECT_TYPE_LABELS = {
   FEEDING_SCHEME: 'Feeding scheme',
   GLASSES_DRIVE: 'Reading glasses drive',
   SCHOOL_SUPPLIES_DRIVE: 'School supplies drive',
+  CLOTHING_DRIVE: 'Clothing drive',
   OTHER: 'Other'
 };
 

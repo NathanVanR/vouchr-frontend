@@ -62,14 +62,6 @@ export async function addStaff(payload) {
   });
 }
 
-export async function createHub(payload, token) {
-  return request("/api/hub/create-hub", {
-    method: "POST",
-    body: JSON.stringify(payload),
-    token
-  });
-}
-
 // Projects (token = fresh Supabase access token, see session.js getAuthToken)
 export async function getProjects(orgId, token) {
   return request(`/api/organizations/${orgId}/projects`, { token });
@@ -107,32 +99,61 @@ export async function addBeneficiary(projectId, payload, token) {
   });
 }
 
-// Hubs
-export async function getHub(hubId, token) {
-  return request(`/api/hub/${hubId}`, { token });
+// Giving aid: sessions (e.g. a weekly soup run) and the enrolled people who received aid in each
+export async function getProjectSessions(projectId, token) {
+  return request(`/api/projects/${projectId}/sessions`, { token });
 }
 
-export async function getHubProjects(hubId, token) {
-  return request(`/api/hub/${hubId}/projects`, { token });
+export async function openProjectSession(projectId, payload, token) {
+  return request(`/api/projects/${projectId}/sessions`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token
+  });
 }
 
-export async function searchHubOrgs(query, token) {
-  return request(`/api/hub/search-orgs?q=${encodeURIComponent(query)}`, { token });
+export async function getAidSession(sessionId, token) {
+  return request(`/api/sessions/${sessionId}`, { token });
 }
 
-export async function addOrgToHub(hubId, organizationId, token) {
-  return request(`/api/hub/${hubId}/add-org`, {
+export async function giveAid(sessionId, payload, token) {
+  return request(`/api/sessions/${sessionId}/handovers`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token
+  });
+}
+
+export async function undoAid(handoverId, token) {
+  return request(`/api/handovers/${handoverId}`, { method: "DELETE", token });
+}
+
+// Organisation search by name (referrals, partnerships). Hides only the organisation being worked in.
+export async function searchOrgs(query, token, excludeOrgId = null) {
+  const exclude = excludeOrgId ? `&excludeOrgId=${encodeURIComponent(excludeOrgId)}` : '';
+  return request(`/api/organizations/search?q=${encodeURIComponent(query)}${exclude}`, { token });
+}
+
+// Other organisations working on a project (invited by the owner's admin, accepted by theirs)
+export async function getProjectParticipants(projectId, token) {
+  return request(`/api/projects/${projectId}/participants`, { token });
+}
+
+export async function inviteProjectParticipant(projectId, organizationId, token) {
+  return request(`/api/projects/${projectId}/participants`, {
     method: "POST",
     body: JSON.stringify({ organizationId }),
     token
   });
 }
 
-export async function leaveHub(hubId, organizationId, token) {
-  return request(`/api/hub/${hubId}/organizations/${organizationId}`, {
-    method: "DELETE",
-    token
-  });
+export async function getProjectInvitations(orgId, token) {
+  return request(`/api/organizations/${orgId}/project-invitations`, { token });
+}
+
+// action: "accept" | "decline" | "end"
+export async function answerProjectParticipant(participantId, action, token) {
+  return request(`/api/project-participants/${participantId}/${action}`, { method: "POST", token });
 }
 
 // People & consent

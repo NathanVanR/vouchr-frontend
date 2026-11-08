@@ -1,10 +1,12 @@
 import { getStoredUser, isDemo } from './utils.js';
 import {
-  createHub, createProject, getProjects,
-  getHub, getHubProjects, leaveHub, searchHubOrgs, addOrgToHub,
+  createProject, getProjects, getProjectInvitations, answerProjectParticipant,
   getPeople, withdrawConsent, getPlatformMe
 } from './api.js';
-import { getAuthToken, escapeHtml, PROJECT_TYPE_LABELS, RELATIONSHIP_LABELS, SERVICE_LABELS } from './session.js';
+import {
+  getAuthToken, escapeHtml, PROJECT_TYPE_LABELS, RELATIONSHIP_LABELS, SERVICE_LABELS, PREREQUISITE_SERVICES,
+  serviceName, projectTypeName, fillSelect
+} from './session.js';
 import { openConsentFlow, openConsentPdf } from './consent.js';
 import { openPersonForm } from './person-form.js';
 import { initFamilies, loadFamilies } from './families.js';
@@ -13,27 +15,25 @@ import { openCarePlanDialog } from './care-plan.js';
 
 // ---------- Projects ----------
 
-function projectCard(project, { showOrg = false } = {}) {
+function projectCard(project) {
   const badges = [];
   if (project.status === 'ARCHIVED') badges.push('<span class="badge badge-expired">Archived</span>');
-  badges.push(project.visibility === 'SHARED_WITH_HUB'
-    ? '<span class="badge badge-active">Shared with hub</span>'
-    : '<span class="badge badge-redeemed">Private</span>');
+  if (project.participant) badges.push('<span class="badge badge-active">Joined</span>');
   if (project.requiredServiceType) {
-    badges.push(`<span class="badge badge-redeemed">Requires ${escapeHtml((SERVICE_LABELS[project.requiredServiceType] || '').toLowerCase())}</span>`);
+    badges.push(`<span class="badge badge-redeemed">Requires ${escapeHtml(serviceName(project.requiredServiceType).toLowerCase())}</span>`);
   }
 
   return `
     <a class="project-card" href="project.html?id=${encodeURIComponent(project.projectId)}">
-      <span class="project-card-type">${escapeHtml(PROJECT_TYPE_LABELS[project.projectType] || project.projectType)}</span>
+      <span class="project-card-type">${escapeHtml(projectTypeName(project.projectType, project.typeLabel))}</span>
       <strong>${escapeHtml(project.name)}</strong>
-      ${showOrg ? `<span class="muted">${escapeHtml(project.organizationName)}</span>` : ''}
+      ${project.participant ? `<span class="muted">Run by ${escapeHtml(project.organizationName)}</span>` : ''}
       ${project.description ? `<span class="muted">${escapeHtml(project.description)}</span>` : ''}
       <span class="project-card-badges">${badges.join(' ')}</span>
     </a>`;
 }
 
-async function loadProjects(orgId) {
+async function loadProjects(orgId, isAdmin) {
   const container = document.getElementById('projects-list');
   container.innerHTML = '<p class="muted">Loading projects…</p>';
 
@@ -45,6 +45,32 @@ async function loadProjects(orgId) {
   } catch (err) {
     console.error(err);
     container.innerHTML = `<p class="muted">${escapeHtml(err.message || 'Failed to load projects.')}</p>`;
+  }
+  loadInvitations(orgId, isAdmin);
+}
+
+/** Projects other organisations have invited this organisation to work on; only admins can answer. */
+async function loadInvitations(orgId, isAdmin) {
+  const box = document.getElementById('invitations');
+  box.innerHTML = '';
+  try {
+    const invitations = await getProjectInvitations(orgId, await getAuthToken());
+    if (!invitations.length) return;
+    box.innerHTML = `
+      <h3>Invitations to work together</h3>
+      <ul class="family-list">${invitations.map(i => `
+        <li class="family-row">
+          <span><strong>${escapeHtml(i.ownerOrganizationName)}</strong> invited us to
+            <strong>${escapeHtml(i.projectName)}</strong>
+            <span class="mp-meta">(${escapeHtml(projectTypeName(i.projectType, i.projectTypeLabel))})</span></span>
+          ${isAdmin && i.canRespond ? `
+            <span class="actions">
+              <button type="button" class="text-link" data-invite-action="accept" data-participant="${escapeHtml(i.participantId)}">Accept</button>
+              <button type="button" class="text-link is-danger" data-invite-action="decline" data-participant="${escapeHtml(i.participantId)}">Decline</button>
+            </span>` : '<span class="muted">An admin can answer</span>'}
+        </li>`).join('')}</ul>`;
+  } catch (err) {
+    console.error(err);
   }
 }
 
@@ -66,16 +92,52 @@ const FIELD_LABELS = {
   address: 'address', school: 'school'
 };
 
-/** Primary adults first (A-Z), each followed by the dependents registered under them. */
-function familyOrder(people) {
-  const ids = new Set(people.map(p => p.personId));
-  const dependentsOf = new Map();
-  people.filter(p => p.primaryPersonId && ids.has(p.primaryPersonId)).forEach(p => {
-    if (!dependentsOf.has(p.primaryPersonId)) dependentsOf.set(p.primaryPersonId, []);
-    dependentsOf.get(p.primaryPersonId).push(p);
-  });
-  const heads = people.filter(p => !p.primaryPersonId || !ids.has(p.primaryPersonId));
-  return heads.flatMap(h => [{ person: h, dependent: false }, ...(dependentsOf.get(h.personId) || []).map(d => ({ person: d, dependent: true }))]);
+let selectedPersonId = null;
+
+const personFullName = (p) => `${p.name} ${p.surname}`;
+
+/** Names (and schools) matching what was typed; nothing until something is typed. */
+function renderPeopleResults() {
+  const results = document.getElementById('people-results');
+  const q = document.getElementById('people-search').value.trim().toLowerCase();
+  if (!q) { results.innerHTML = ''; return; }
+  const matches = currentPeople
+    .filter(p => `${p.name} ${p.surname} ${p.school || ''}`.toLowerCase().includes(q))
+    .sort((x, y) => personFullName(x).localeCompare(personFullName(y)))
+    .slice(0, 12);
+  results.innerHTML = matches.map(p => `<li>
+      <span><button type="button" class="text-link" data-action="select-person" data-person="${escapeHtml(p.personId)}">${escapeHtml(personFullName(p))}</button>
+        <span class="muted">${p.ageGroup === 'CHILD' ? 'child' : ''}${p.school ? ` · ${escapeHtml(p.school)}` : ''}</span></span>
+    </li>`).join('') || '<li class="muted">No one found.</li>';
+}
+
+/** Only the chosen person is shown, as a card (a table of everyone is what made this page cluttered). */
+function renderSelectedPerson() {
+  const container = document.getElementById('people-list');
+  const p = currentPeople.find(x => x.personId === selectedPersonId);
+  if (!p) {
+    selectedPersonId = null;
+    container.innerHTML = `<p class="muted">${currentPeople.length ? 'Search for a person to see their details.' : 'Nobody has been added yet.'}</p>`;
+    return;
+  }
+  const parent = p.primaryPersonId ? currentPeople.find(x => x.personId === p.primaryPersonId) : null;
+  const missing = (p.missingFields || []).length
+    ? escapeHtml(p.missingFields.map(f => FIELD_LABELS[f] || f).join(', ')) : 'Complete';
+  container.innerHTML = `
+    <article class="family-card">
+      <h3>${escapeHtml(personFullName(p))}</h3>
+      <p><strong>Age group:</strong> ${AGE_LABELS[p.ageGroup] || escapeHtml(p.ageGroup)}${p.school ? ` <span class="muted">· ${escapeHtml(p.school)}</span>` : ''}</p>
+      ${p.relationship ? `<p><strong>Registered under:</strong> ${escapeHtml(RELATIONSHIP_LABELS[p.relationship] || p.relationship)} of ${escapeHtml(parent ? personFullName(parent) : '')}</p>` : ''}
+      <p><strong>Consent:</strong> ${CONSENT_BADGES[p.consentStatus] || escapeHtml(p.consentStatus)}
+        ${p.consentStatus === 'VALID' ? `<span class="muted">· shared with partner orgs: ${p.sharesWithPartners ? 'yes' : 'no'}</span>` : ''}</p>
+      <p><strong>Not on file yet:</strong> <span class="muted">${missing}</span></p>
+      <div class="actions">${personActions(p)}</div>
+    </article>`;
+}
+
+/** A child is covered by an adult in their own family, so the family must have a registered adult. */
+function canCaptureForChild(child) {
+  return !!child.familyId && currentPeople.some(x => x.familyId === child.familyId && x.ageGroup !== 'CHILD');
 }
 
 function personActions(p) {
@@ -90,9 +152,12 @@ function personActions(p) {
     buttons.push(`<button type="button" class="text-link is-danger" data-action="withdraw" data-consent="${escapeHtml(p.consentId)}">Withdraw</button>`);
   }
   if (p.ageGroup === 'CHILD') {
-    // a child is covered by an adult's signature (a registered parent, or a guardian entered while signing)
+    // a child is covered by the signature of a registered adult in their family
     if (p.consentStatus !== 'VALID') {
-      buttons.push(`<button type="button" class="text-link" data-action="capture-child" data-person="${id}">Capture consent</button>`);
+      // a child is covered by a registered adult in their family, so they need a family with a parent or guardian
+      buttons.push(canCaptureForChild(p)
+        ? `<button type="button" class="text-link" data-action="capture-child" data-person="${id}">Capture consent</button>`
+        : '<span class="muted">Add to a family with a parent or guardian to capture consent</span>');
     }
   } else {
     // adults sign for themselves; someone who already has a consent can sign again to cover more children
@@ -120,45 +185,21 @@ export async function loadPeople(orgId) {
     return;
   }
 
-  if (!currentPeople.length) {
-    container.innerHTML = '<p class="muted">Nobody has been added yet.</p>';
-    return;
-  }
-
-  const nameOf = (id) => {
-    const p = currentPeople.find(x => x.personId === id);
-    return p ? `${p.name} ${p.surname}` : '';
-  };
-
-  container.innerHTML = `
-    <div class="table-wrap">
-      <table class="data-table">
-        <thead>
-          <tr><th>Name</th><th>Age group</th><th>Registered under</th><th>Consent</th><th>Not on file yet</th><th>Shared with partner orgs</th><th></th></tr>
-        </thead>
-        <tbody>
-          ${familyOrder(currentPeople).map(({ person: p, dependent }) => `
-            <tr class="${dependent ? 'person-dependent' : ''}">
-              <td>${dependent ? '<span class="dependent-indent">↳</span> ' : ''}${escapeHtml(p.name)} ${escapeHtml(p.surname)}</td>
-              <td>${AGE_LABELS[p.ageGroup] || escapeHtml(p.ageGroup)}${p.school ? `<br><span class="muted">${escapeHtml(p.school)}</span>` : ''}</td>
-              <td>${p.relationship ? `${escapeHtml(RELATIONSHIP_LABELS[p.relationship] || p.relationship)} of ${escapeHtml(nameOf(p.primaryPersonId))}` : '—'}</td>
-              <td>${CONSENT_BADGES[p.consentStatus] || escapeHtml(p.consentStatus)}</td>
-              <td class="muted">${(p.missingFields || []).length
-                ? escapeHtml(p.missingFields.map(f => FIELD_LABELS[f] || f).join(', '))
-                : 'Complete'}</td>
-              <td>${p.consentStatus === 'VALID' ? (p.sharesWithPartners ? 'Yes' : 'No') : '—'}</td>
-              <td><div class="actions">${personActions(p)}</div></td>
-            </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>`;
+  renderSelectedPerson();
+  renderPeopleResults();
 }
 
 async function onPeopleAction(e, orgId, refresh) {
   const button = e.target.closest('button[data-action]');
   if (!button) return;
 
-  if (button.dataset.action === 'view') {
+  if (button.dataset.action === 'select-person') {
+    selectedPersonId = button.dataset.person;
+    const person = currentPeople.find(p => p.personId === selectedPersonId);
+    document.getElementById('people-search').value = person ? personFullName(person) : '';
+    document.getElementById('people-results').innerHTML = '';
+    renderSelectedPerson();
+  } else if (button.dataset.action === 'view') {
     openConsentPdf(button.dataset.consent);
   } else if (button.dataset.action === 'edit') {
     startPersonForm(orgId, button.dataset.person, refresh);
@@ -197,7 +238,9 @@ function startPersonForm(orgId, personId, refresh) {
     onDone: async (person, { captureConsent }) => {
       showMessage('people-message', personId ? 'Details saved.' : 'Person added.');
       await refresh();
-      if (captureConsent) {
+      if (captureConsent && person.ageGroup === 'CHILD' && !canCaptureForChild(person)) {
+        showMessage('people-message', `Put ${person.name} in a family with a parent or guardian on the Families tab, then capture consent.`);
+      } else if (captureConsent) {
         // a child is covered by an adult's signature, an adult signs for themselves
         startConsentFlow(orgId, person.ageGroup === 'CHILD'
           ? { coverPersonIds: [person.personId] }
@@ -226,9 +269,7 @@ async function refreshPeopleAndFamilies(orgId) {
   await loadFamilies(orgId);
 }
 
-// ---------- Hub ----------
-
-let currentHubId = null;
+// ---------- messages ----------
 
 function showMessage(id, text, type = '') {
   const el = document.getElementById(id);
@@ -238,134 +279,8 @@ function showMessage(id, text, type = '') {
   if (el.classList.contains('message')) el.className = `message ${type}`.trim();
 }
 
-async function loadHub(org, orgId, isAdmin) {
-  const hubSection = document.getElementById('hub-section');
-  const createHubSection = document.getElementById('create-hub-section');
-  const addOrgSection = document.getElementById('add-org-to-hub-section');
-  const leaveBtn = document.getElementById('leave-hub-btn');
-
-  currentHubId = org.hubId || null;
-
-  // An org can only be in one hub, so creating one is only offered when it has none
-  createHubSection.style.display = isAdmin && !org.hubId ? 'block' : 'none';
-  hubSection.style.display = org.hubId ? 'block' : 'none';
-  addOrgSection.style.display = isAdmin && org.hubId ? 'block' : 'none';
-  leaveBtn.style.display = isAdmin && org.hubId ? 'inline-block' : 'none';
-  showMessage('hub-message', '');
-  showMessage('add-org-message', '');
-  document.getElementById('org-search').value = '';
-  document.getElementById('org-search-results').innerHTML = '';
-
-  if (!org.hubId) return;
-
-  document.getElementById('hub-title').textContent = `Hub: ${org.hubName || ''}`;
-  document.getElementById('hub-orgs').textContent = 'Loading…';
-  const shared = document.getElementById('hub-shared-projects');
-  shared.innerHTML = '<p class="muted">Loading…</p>';
-
-  try {
-    const token = await getAuthToken();
-    const [hub, projects] = await Promise.all([
-      getHub(org.hubId, token),
-      getHubProjects(org.hubId, token)
-    ]);
-    const others = hub.organizations.filter(o => o.organizationId !== orgId).map(o => o.name);
-    document.getElementById('hub-title').textContent = `Hub: ${hub.hubName} (${hub.city})`;
-    document.getElementById('hub-orgs').textContent = others.length
-      ? `Also in this hub: ${others.join(', ')}`
-      : 'No other organisations have joined this hub yet.';
-    shared.innerHTML = projects.length
-      ? projects.map(p => projectCard(p, { showOrg: true })).join('')
-      : '<p class="muted">No projects have been shared with the hub yet.</p>';
-  } catch (err) {
-    console.error(err);
-    document.getElementById('hub-orgs').textContent = err.message || 'Failed to load hub';
-    shared.innerHTML = '';
-  }
-}
-
-function setupOrgSearch() {
-  const input = document.getElementById('org-search');
-  if (!input) return;
-
-  let timer = null;
-  input.addEventListener('input', () => {
-    clearTimeout(timer);
-    const q = input.value.trim();
-    if (q.length < 2) {
-      document.getElementById('org-search-results').innerHTML = '';
-      return;
-    }
-    timer = setTimeout(() => searchOrganizations(q), 300);
-  });
-}
-
-async function searchOrganizations(query) {
-  try {
-    const results = await searchHubOrgs(query, await getAuthToken());
-    renderOrgResults(results);
-  } catch (err) {
-    console.error(err);
-    showMessage('add-org-message', err.message || 'Search failed', 'error');
-  }
-}
-
-function renderOrgResults(results) {
-  const list = document.getElementById('org-search-results');
-  list.innerHTML = '';
-
-  if (!results.length) {
-    list.innerHTML = '<li><span class="org-meta">No other organizations match. Organizations you already belong to are not listed.</span></li>';
-    return;
-  }
-
-  results.forEach(org => {
-    const li = document.createElement('li');
-    const info = document.createElement('div');
-    info.innerHTML = `
-      <strong>${escapeHtml(org.name)}</strong>
-      <div class="org-meta">${escapeHtml(org.city || '')}${org.alreadyInHub ? ' · already in a hub (it must leave that hub first)' : ''}</div>
-    `;
-
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    if (org.alreadyInHub) {
-      btn.textContent = 'Already in a hub';
-      btn.disabled = true;
-    } else {
-      btn.textContent = 'Add to hub';
-      btn.addEventListener('click', () => addOrg(org.organizationId, btn));
-    }
-
-    li.append(info, btn);
-    list.appendChild(li);
-  });
-}
-
-async function addOrg(organizationId, button) {
-  if (!currentHubId) {
-    showMessage('add-org-message', 'No hub selected', 'error');
-    return;
-  }
-
-  button.disabled = true;
-  button.textContent = 'Adding…';
-  showMessage('add-org-message', '');
-
-  try {
-    await addOrgToHub(currentHubId, organizationId, await getAuthToken());
-    showMessage('add-org-message', 'Organization added to hub', 'success');
-    button.textContent = 'Added';
-  } catch (err) {
-    console.error(err);
-    showMessage('add-org-message', err.message || 'Failed to add organization', 'error');
-    button.disabled = false;
-    button.textContent = 'Add to hub';
-  }
-}
-
 // ---------- views & header menu ----------
-const VIEWS = { projects: 'Projects', people: 'People', families: 'Families', partners: 'Partners', hubs: 'Hubs' };
+const VIEWS = { projects: 'Projects', people: 'People', families: 'Families', partners: 'Partners' };
 
 function showView() {
   const name = VIEWS[location.hash.slice(1)] ? location.hash.slice(1) : 'projects';
@@ -456,10 +371,9 @@ async function initEmployeePortal() {
     document.getElementById('create-project-section').style.display = isAdmin ? 'block' : 'none';
     showMessage('create-project-message', '');
 
-    loadProjects(orgId);
+    loadProjects(orgId, isAdmin);
     refreshPeopleAndFamilies(orgId);
     loadPartners(orgId, isAdmin);
-    loadHub(org, orgId, isAdmin);
   };
 
   activeOrgSelect.addEventListener('change', (e) => updateOrgContext(e.target.value));
@@ -469,8 +383,16 @@ async function initEmployeePortal() {
   activeOrgSelect.value = initialOrgId;
   updateOrgContext(initialOrgId);
 
-  // Add project form
+  // Add project form (the type and service lists come from the shared catalogue in session.js)
   const projectForm = document.getElementById('create-project-form');
+  const typeSelect = document.getElementById('project-type');
+  fillSelect(typeSelect, PROJECT_TYPE_LABELS);
+  fillSelect(document.getElementById('project-required-service'), PREREQUISITE_SERVICES, 'No prerequisite');
+  const syncTypeLabel = () => {
+    document.getElementById('project-type-label-group').hidden = typeSelect.value !== 'OTHER';
+  };
+  typeSelect.addEventListener('change', syncTypeLabel);
+  syncTypeLabel();
   projectForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const orgId = activeOrgSelect.value;
@@ -478,6 +400,8 @@ async function initEmployeePortal() {
     const payload = {
       name: document.getElementById('project-name').value.trim(),
       projectType: document.getElementById('project-type').value,
+      typeLabel: document.getElementById('project-type').value === 'OTHER'
+        ? document.getElementById('project-type-label').value.trim() || null : null,
       description: document.getElementById('project-description').value.trim() || null,
       requiredServiceType: document.getElementById('project-required-service').value || null,
       requirementEnforcement: document.getElementById('project-enforcement').value
@@ -487,8 +411,9 @@ async function initEmployeePortal() {
     try {
       await createProject(orgId, payload, await getAuthToken());
       projectForm.reset();
+      syncTypeLabel();
       showMessage('create-project-message', 'Project added.');
-      loadProjects(orgId);
+      loadProjects(orgId, true);
     } catch (err) {
       console.error(err);
       showMessage('create-project-message', err.message || 'Failed to add project');
@@ -501,6 +426,9 @@ async function initEmployeePortal() {
     startPersonForm(activeOrgSelect.value, null, refresh));
   document.getElementById('people-list').addEventListener('click', (e) =>
     onPeopleAction(e, activeOrgSelect.value, refresh));
+  document.getElementById('people-results').addEventListener('click', (e) =>
+    onPeopleAction(e, activeOrgSelect.value, refresh));
+  document.getElementById('people-search').addEventListener('input', renderPeopleResults);
   initFamilies({
     getOrgId: () => activeOrgSelect.value,
     getPeopleList: getCurrentPeople,
@@ -510,55 +438,18 @@ async function initEmployeePortal() {
 
   initPartners({ getOrgId: () => activeOrgSelect.value, showMessage });
 
-  // Create Hub form
-  const createHubForm = document.getElementById('create-hub-form');
-  createHubForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const orgId = activeOrgSelect.value;
-    const payload = {
-      organizationId: orgId,
-      hubName: document.getElementById('hub-name').value.trim() || null,
-      city: document.getElementById('hub-city').value.trim() || null
-    };
-
-    showMessage('create-hub-message', 'Creating hub…');
+  // Answering an invitation to work on someone else's project
+  document.getElementById('invitations').addEventListener('click', async (e) => {
+    const button = e.target.closest('button[data-invite-action]');
+    if (!button) return;
     try {
-      const data = await createHub(payload, await getAuthToken());
-      createHubForm.reset();
-      showMessage('create-hub-message', '');
-
-      userOrganizations[orgId].hubId = data.hubId;
-      userOrganizations[orgId].hubName = data.hubName;
-      updateOrgContext(orgId);
+      await answerProjectParticipant(button.dataset.participant, button.dataset.inviteAction, await getAuthToken());
+      loadProjects(activeOrgSelect.value, true);
     } catch (err) {
       console.error(err);
-      showMessage('create-hub-message', err.message || 'Failed to create hub');
+      alert(err.message || 'Could not answer the invitation');
     }
   });
-
-  // Leave hub
-  document.getElementById('leave-hub-btn').addEventListener('click', async () => {
-    const orgId = activeOrgSelect.value;
-    const org = userOrganizations[orgId];
-    if (!org?.hubId) return;
-
-    if (!confirm(`Remove ${org.name} from the hub "${org.hubName}"? Projects will no longer be shared with it.`)) {
-      return;
-    }
-
-    try {
-      await leaveHub(org.hubId, orgId, await getAuthToken());
-      delete org.hubId;
-      delete org.hubName;
-      updateOrgContext(orgId);
-    } catch (err) {
-      console.error(err);
-      showMessage('hub-message', err.message || 'Failed to leave hub');
-    }
-  });
-
-  setupOrgSearch();
 
   // Platform admins (configured on the server) get a link to the platform settings
   getAuthToken()
