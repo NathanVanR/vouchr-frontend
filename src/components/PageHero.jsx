@@ -3,9 +3,9 @@ import Icon from './Icon.jsx'
 
 /**
  * The green hero at the top of a page (plain page header on desktop).
- * stats: [{ value, label }]  action: { label, onClick } shows a yellow add button on phones and a button here on desktop.
+ * stats: [{ value, label }]  children: extra controls (e.g. filter chips) shown inside the hero under the stats  action: { label, onClick } shows a yellow add button on phones and a button here on desktop.
  */
-export default function PageHero({ eyebrow, title, subtitle, back, stats, action }) {
+export default function PageHero({ eyebrow, title, subtitle, back, stats, action, children }) {
   return (
     <>
       <section className="page-hero">
@@ -36,6 +36,7 @@ export default function PageHero({ eyebrow, title, subtitle, back, stats, action
             ))}
           </div>
         )}
+        {children && <div className="hero-extra">{children}</div>}
       </section>
       {action && (
         <button type="button" className="fab" aria-label={action.label} onClick={action.onClick}>

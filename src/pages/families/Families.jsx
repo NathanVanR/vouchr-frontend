@@ -205,10 +205,13 @@ export default function Families() {
       />
 
       <div className="page-body">
-        <p className="muted" style={{ maxWidth: '70ch' }}>
-          Group people who belong together as you learn more about them, record what the family needs, and refer the family to another
-          organisation that can help, such as a local social welfare organisation.
-        </p>
+        <section className="card">
+          <h2>Families</h2>
+          <p className="muted">
+            Group people who belong together as you learn more about them, record what the family needs, and refer the family to another
+            organisation that can help, such as a local social welfare organisation.
+          </p>
+        </section>
         <div className="split">
           <section className="card">
             <div className="field" style={{ marginBottom: 6 }}>
