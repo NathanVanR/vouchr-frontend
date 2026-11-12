@@ -100,9 +100,7 @@ export default function Projects() {
           { value: invitations.data ? invitations.data.length : '–', label: 'Invitations' },
         ]}
         action={isAdmin ? { label: 'New project', onClick: () => setCreating(true) } : undefined}
-      />
-
-      <div className="page-body">
+      >
         <div className="chips" role="group" aria-label="Filter projects">
           {FILTERS.map(([value, label]) => (
             <button key={value} type="button" className={`chip${filter === value ? ' on' : ''}`} aria-pressed={filter === value} onClick={() => setFilter(value)}>
@@ -110,7 +108,9 @@ export default function Projects() {
             </button>
           ))}
         </div>
+      </PageHero>
 
+      <div className="page-body">
         <Invitations orgId={activeOrgId} isAdmin={isAdmin} />
 
         {projects.isPending && <CardSkeletons count={3} height={110} />}
