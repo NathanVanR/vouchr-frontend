@@ -1,6 +1,6 @@
 # Vouchr frontend (React)
 
-The staff app for Vouchr, rewritten in React (Vite). It replaces the plain HTML/JS site in `../vouchr-frontend`.
+The staff app for Vouchr, built with React and Vite and live at https://vouchr.natevr.net. (The earlier plain HTML/JS site is only in git history.)
 Phone-first design with a desktop layout (sidebar, two-pane lists) from 900px up. Installable as a PWA.
 
 ## Run it
@@ -36,6 +36,7 @@ src/
 - Auth uses `@supabase/auth-js` directly (only Auth is used), not the full `supabase-js`, which keeps the bundle small.
   The storage key matches supabase-js, so people signed in on the old site stay signed in.
 - Demo mode (`/demo`) answers every API call from `lib/demo-data.js` and keeps its state in `sessionStorage`.
-- Deploy: `.github/workflows/deploy.yml` builds and publishes to GitHub Pages (Settings > Pages > Source: GitHub Actions).
+- Deploy: pushing to `master` runs `.github/workflows/deploy.yml`, which lints, builds and publishes to GitHub Pages (Settings > Pages > Source: GitHub Actions).
   `public/CNAME` keeps the `vouchr.natevr.net` domain.
+- Layout: `.page-body` is pulled up over the green `PageHero` on phones, so a page's first element must be a card, or go inside the hero as `PageHero` children (the Projects filter chips do).
 - `node scripts/make-icons.mjs` regenerates the PWA icons.
