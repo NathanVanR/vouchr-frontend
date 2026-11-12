@@ -1,0 +1,33 @@
+/* Design B "Vivid": solid green header, white cards, yellow action colour, pill navigation. */
+:root {
+  --g: #0e7a5a;
+  --g-dark: #0a5c44;
+  --g-soft: #cdeedd;
+  --y: #ffc83d;
+  --y-ink: #3d2d00;
+  --bg: #f0f6f2;
+  --card: #ffffff;
+  --ink: #10261d;
+  --mut: #5a7066;
+  --line: #dbe8e0;
+  --track: #e3efe8;
+  --danger: #b3361f;
+  --danger-bg: #fde8e4;
+  --warn: #8a6200;
+  --warn-bg: #fff3cc;
+  --ok: #0a5c44;
+  --ok-bg: #d5f3e3;
+  --info: #1f4fa8;
+  --info-bg: #e3ecfb;
+
+  --r-sm: 10px;
+  --r-md: 16px;
+  --r-lg: 22px;
+  --shadow: 0 6px 18px rgba(14, 122, 90, 0.1);
+  --shadow-up: 0 -6px 20px rgba(14, 122, 90, 0.1);
+
+  --font: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --nav-h: 76px;
+}
