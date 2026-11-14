@@ -74,7 +74,9 @@ export default function Landing() {
         </section>
       </main>
 
-      <footer className="site-foot">© 2026 Vouchr. Dignity through choice.</footer>
+      <footer className="site-foot">
+        © 2026 Vouchr. Dignity through choice. · <Link to="/privacy">Privacy</Link> · <Link to="/terms">Terms</Link>
+      </footer>
     </>
   )
 }

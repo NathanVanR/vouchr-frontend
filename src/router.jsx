@@ -9,6 +9,8 @@ export const router = createBrowserRouter([
   { path: '/login', lazy: page(() => import('./pages/Login.jsx')) },
   { path: '/register', lazy: page(() => import('./pages/Register.jsx')) },
   { path: '/auth/callback', lazy: page(() => import('./pages/AuthCallback.jsx')) },
+  { path: '/privacy', lazy: page(() => import('./pages/legal/Privacy.jsx')) },
+  { path: '/terms', lazy: page(() => import('./pages/legal/Terms.jsx')) },
   { path: '/register-org', lazy: page(() => import('./pages/RegisterOrg.jsx')) },
   {
     // Starts demo mode (sample data, no login). A full page load keeps the auth state clean, like the old demo.
