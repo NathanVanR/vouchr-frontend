@@ -7,6 +7,17 @@ import { config } from '../config.js'
 
 const { url, anonKey } = config.supabase
 
+/** An error carried in the page address by a link (e.g. an expired confirmation), read before the auth client clears the URL. */
+function readUrlError() {
+  try {
+    const params = new URLSearchParams(`${window.location.hash.replace(/^#/, '')}&${window.location.search.replace(/^\?/, '')}`)
+    return params.get('error_description') || params.get('error') || null
+  } catch {
+    return null
+  }
+}
+export const urlError = readUrlError()
+
 export const supabase = {
   auth: new GoTrueClient({
     url: `${url}/auth/v1`,

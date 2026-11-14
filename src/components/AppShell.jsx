@@ -47,7 +47,7 @@ function OrgSwitch() {
 function useAccountLinks() {
   const { isAdmin, isPlatformAdmin, demo, logout } = useAuth()
   const toast = useToast()
-  const links = []
+  const links = [{ to: '/app/account', label: 'Account' }]
   if (isAdmin) links.push({ to: '/app/team', label: 'Manage team' })
   if (isPlatformAdmin) links.push({ to: '/app/platform', label: 'Platform settings' })
   const createOrg = demo
@@ -151,11 +151,39 @@ function NoOrganisation() {
   )
 }
 
+/** The account now signs in with a different email than the staff profile shows: offer to update the profile. */
+function EmailBanner() {
+  const { emailMismatch, sessionEmail, syncEmail } = useAuth()
+  const toast = useToast()
+  const [busy, setBusy] = useState(false)
+  if (!emailMismatch) return null
+
+  async function update() {
+    setBusy(true)
+    try {
+      await syncEmail()
+      toast('Your profile email is updated.')
+    } catch (err) {
+      toast(err.message || 'Could not update your profile email', 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="message" role="status" style={{ margin: 12, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+      <span>Your sign-in email is now <strong>{sessionEmail}</strong>. Update your profile to match?</span>
+      <button type="button" className="btn btn-sm" disabled={busy} onClick={update}>{busy ? 'Updating…' : 'Update'}</button>
+    </div>
+  )
+}
+
 function Shell() {
   const { demo, orgIds } = useAuth()
   return (
     <div>
       {demo && <DemoBanner />}
+      <EmailBanner />
       <div className="app">
         <Sidebar />
         <div className="app-main">

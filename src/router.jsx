@@ -8,6 +8,7 @@ export const router = createBrowserRouter([
   { path: '/', lazy: page(() => import('./pages/Landing.jsx')) },
   { path: '/login', lazy: page(() => import('./pages/Login.jsx')) },
   { path: '/register', lazy: page(() => import('./pages/Register.jsx')) },
+  { path: '/auth/callback', lazy: page(() => import('./pages/AuthCallback.jsx')) },
   { path: '/register-org', lazy: page(() => import('./pages/RegisterOrg.jsx')) },
   {
     // Starts demo mode (sample data, no login). A full page load keeps the auth state clean, like the old demo.
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
       { path: 'people', lazy: page(() => import('./pages/people/People.jsx')) },
       { path: 'families', lazy: page(() => import('./pages/families/Families.jsx')) },
       { path: 'partners', lazy: page(() => import('./pages/partners/Partners.jsx')) },
+      { path: 'account', lazy: page(() => import('./pages/account/Account.jsx')) },
       { path: 'area', lazy: page(() => import('./pages/area/Area.jsx')) },
       { path: 'team', lazy: page(() => import('./pages/admin/Team.jsx')) },
       { path: 'platform', lazy: page(() => import('./pages/admin/Platform.jsx')) },

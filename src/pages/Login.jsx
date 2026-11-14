@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import { getMe } from '../lib/api.js'
+import { isEmailNotConfirmed, resendConfirmation } from '../lib/authFlow.js'
 import { useAuth } from '../auth/useAuth.js'
 import AuthLayout from '../components/AuthLayout.jsx'
 import Field from '../components/Field.jsx'
+import GoogleButton from '../components/GoogleButton.jsx'
 import PasswordField from '../components/PasswordField.jsx'
 
 export default function Login() {
@@ -15,6 +17,8 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [unconfirmed, setUnconfirmed] = useState(false)
+  const [resent, setResent] = useState('')
 
   if (status === 'authed') return <Navigate to={location.state?.from || '/app/projects'} replace />
 
@@ -22,9 +26,18 @@ export default function Login() {
     e.preventDefault()
     setBusy(true)
     setError('')
+    setUnconfirmed(false)
+    setResent('')
     try {
       const { error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
-      if (signInError) throw signInError
+      if (signInError) {
+        if (isEmailNotConfirmed(signInError)) {
+          setUnconfirmed(true)
+          setError('You need to confirm your email address before you can sign in. Check your inbox for the link we sent.')
+          return
+        }
+        throw signInError
+      }
 
       let profile
       try {
@@ -51,6 +64,16 @@ export default function Login() {
     }
   }
 
+  async function resend() {
+    setResent('')
+    try {
+      await resendConfirmation(email.trim())
+      setResent('We sent the confirmation link again.')
+    } catch (err) {
+      setError(err.message || 'Could not send the email. Please try again in a minute.')
+    }
+  }
+
   return (
     <AuthLayout
       title="Welcome back"
@@ -62,6 +85,7 @@ export default function Login() {
         </p>
       }
     >
+      <GoogleButton />
       <form onSubmit={submit}>
         <Field label="Email">
           <input
@@ -75,6 +99,12 @@ export default function Login() {
         </Field>
         <PasswordField label="Password" value={password} onChange={setPassword} autoComplete="current-password" />
         {error && <p className="message error" role="alert" style={{ marginBottom: 14 }}>{error}</p>}
+        {unconfirmed && (
+          <p style={{ marginBottom: 14 }}>
+            <button type="button" className="link-btn" onClick={resend}>Send the confirmation link again</button>
+            {resent && <span className="muted small"> {resent}</span>}
+          </p>
+        )}
         <button type="submit" className="btn btn-block" disabled={busy}>
           {busy ? 'Signing in…' : 'Sign in'}
         </button>

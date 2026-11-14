@@ -4,21 +4,33 @@ import { PhoneInput } from 'react-international-phone'
 import 'react-international-phone/style.css'
 import { supabase } from '../lib/supabase.js'
 import { registerStaff } from '../lib/api.js'
+import { callbackUrl } from '../lib/authFlow.js'
 import { isValidPhone } from '../lib/validation.js'
 import { useAuth } from '../auth/useAuth.js'
 import AuthLayout from '../components/AuthLayout.jsx'
+import CheckEmail from '../components/CheckEmail.jsx'
 import Field from '../components/Field.jsx'
+import GoogleButton from '../components/GoogleButton.jsx'
 import PasswordField from '../components/PasswordField.jsx'
+import { Splash } from '../components/Skeleton.jsx'
+import FinishProfile from './FinishProfile.jsx'
 
 // Staff accounts only. People who receive help are registered by staff inside an organisation.
+// The email has to be confirmed first: sign-up sends a link, and clicking it (see AuthCallback) creates the staff profile from the
+// details typed here, which travel with the account.
 export default function Register() {
-  const { refresh } = useAuth()
+  const { status, profileMissing, refresh } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', confirm: '' })
   const [phone, setPhone] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [sentTo, setSentTo] = useState('')
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value })
+
+  if (status === 'loading') return <Splash />
+  // already signed in (Google, or an unfinished sign-up) but no staff profile yet: just finish the profile
+  if (status === 'error' && profileMissing) return <FinishProfile />
 
   async function submit(e) {
     e.preventDefault()
@@ -28,32 +40,35 @@ export default function Register() {
 
     setBusy(true)
     const email = form.email.trim()
+    const details = { firstName: form.firstName.trim(), lastName: form.lastName.trim(), phoneNumber: phone }
     try {
-      let accessToken
-      let authUserId
-
-      const { data: signUp, error: signUpError } = await supabase.auth.signUp({ email, password: form.password })
+      const { data: signUp, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password: form.password,
+        options: { emailRedirectTo: callbackUrl(), data: details },
+      })
       if (signUpError) {
         const msg = (signUpError.message || '').toLowerCase()
         const alreadyRegistered = msg.includes('already') || msg.includes('registered') || signUpError.status === 422
         if (!alreadyRegistered) throw signUpError
 
-        // The Supabase account exists (maybe from an unfinished registration): sign in and finish the staff profile.
+        // The account exists (maybe from an unfinished registration): sign in and finish the staff profile.
         const { data: signIn, error: signInError } = await supabase.auth.signInWithPassword({ email, password: form.password })
         if (signInError) throw signInError
         if (!signIn.session) throw new Error('Sign-in succeeded but no session was returned.')
-        accessToken = signIn.session.access_token
-        authUserId = signIn.user.id
-      } else {
-        if (!signUp.session) throw new Error('No session returned. Check that GOTRUE_MAILER_AUTOCONFIRM=true is set.')
-        accessToken = signUp.session.access_token
-        authUserId = signUp.user.id
+        await registerStaff({ authUserId: signIn.user.id, ...details, email }, signIn.session.access_token)
+        await refresh()
+        navigate('/app/projects', { replace: true })
+        return undefined
       }
 
-      await registerStaff(
-        { authUserId, firstName: form.firstName.trim(), lastName: form.lastName.trim(), email, phoneNumber: phone },
-        accessToken,
-      )
+      if (!signUp.session) {
+        // email confirmation is on: nothing is created until they click the link we just sent
+        setSentTo(email)
+        return undefined
+      }
+      // confirmation is off in this environment: the account is usable straight away
+      await registerStaff({ authUserId: signUp.user.id, ...details, email }, signUp.session.access_token)
       await refresh()
       navigate('/app/projects', { replace: true })
     } catch (err) {
@@ -62,6 +77,19 @@ export default function Register() {
     } finally {
       setBusy(false)
     }
+    return undefined
+  }
+
+  if (sentTo) {
+    return (
+      <AuthLayout
+        title="Check your email"
+        headLink={{ to: '/login', label: 'Sign in' }}
+        footer={<p className="auth-foot">Already confirmed it? <Link to="/login">Sign in</Link></p>}
+      >
+        <CheckEmail email={sentTo} onChangeAddress={() => setSentTo('')} />
+      </AuthLayout>
+    )
   }
 
   return (
@@ -78,6 +106,7 @@ export default function Register() {
         </>
       }
     >
+      <GoogleButton label="Sign up with Google" />
       <form onSubmit={submit}>
         <div className="field-row">
           <Field label="First name">
@@ -87,7 +116,7 @@ export default function Register() {
             <input value={form.lastName} onChange={set('lastName')} autoComplete="family-name" required />
           </Field>
         </div>
-        <Field label="Email">
+        <Field label="Email" hint="We will send a link to confirm it.">
           <input type="email" value={form.email} onChange={set('email')} autoComplete="email" placeholder="you@example.com" required />
         </Field>
         <div className="field">
