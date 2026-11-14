@@ -43,6 +43,8 @@ const del = (url) => request(url, { method: 'DELETE' })
 
 // ---- Auth / users / organisations ----
 export const getMe = () => get('/api/users/me')
+/** Makes the profile's email follow the confirmed address on the sign-in token (after an email change). */
+export const syncMyEmail = () => post('/api/users/me/email-sync')
 export const registerStaff = (payload, token) => request('/api/users/staff', { method: 'POST', body: payload, token })
 export const createOrganization = (payload) => post('/api/organization', payload)
 export const addStaff = (payload) => post('/api/organization/add-staff', payload)

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase.js'
-import { getMe, getPlatformMe } from '../lib/api.js'
+import { getMe, getPlatformMe, syncMyEmail } from '../lib/api.js'
 import { isDemo, exitDemoMode } from '../lib/demo.js'
 import { isAdminRole } from '../lib/labels.js'
 import { AuthContext } from './context.js'
@@ -53,7 +53,7 @@ export function AuthProvider({ children }) {
       if (event === 'SIGNED_OUT') {
         queryClient.clear()
         queryClient.setQueryData(['auth', 'session', false], null)
-      } else if (event === 'SIGNED_IN') {
+      } else if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') {
         queryClient.invalidateQueries({ queryKey: ['auth', 'session'] })
       }
     })
@@ -80,6 +80,17 @@ export function AuthProvider({ children }) {
       /* the choice just is not remembered */
     }
   }, [])
+
+  // The address the account signs in with versus the one on the staff profile. They differ after an email change was confirmed
+  // (possibly on another device); the profile is never rewritten silently, the app offers to update it.
+  const sessionEmail = demo ? null : sessionQuery.data?.user?.email ?? null
+  const emailMismatch =
+    !demo && meQuery.isSuccess && !!sessionEmail && !!meQuery.data?.email && sessionEmail.toLowerCase() !== meQuery.data.email.toLowerCase()
+
+  const syncEmail = useCallback(async () => {
+    await syncMyEmail()
+    await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] })
+  }, [queryClient])
 
   /** Re-read the session and profile (after signing in, registering or creating an organisation). */
   const refresh = useCallback(async () => {
@@ -115,11 +126,14 @@ export function AuthProvider({ children }) {
       setActiveOrgId,
       isAdmin: isAdminRole(activeOrg?.role),
       isPlatformAdmin: !!platformQuery.data?.platformAdmin,
+      sessionEmail,
+      emailMismatch,
+      syncEmail,
       refresh,
       logout,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [status, demo, meQuery.data, meQuery.error, meQuery.isError, activeOrgId, platformQuery.data, refresh, logout, setActiveOrgId],
+    [status, demo, meQuery.data, meQuery.error, meQuery.isError, activeOrgId, platformQuery.data, sessionEmail, emailMismatch, syncEmail, refresh, logout, setActiveOrgId],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
