@@ -31,13 +31,13 @@ function EventRow({ event: e, onOpen }) {
   )
 }
 
-export default function AreaCalendar({ orgId, city, onAdd, onOpen }) {
+export default function AreaCalendar({ orgId, place, onAdd, onOpen }) {
   const now = new Date()
   const [view, setView] = useState({ year: now.getFullYear(), month: now.getMonth() })
   const [selected, setSelected] = useState(null)
 
   const grid = monthGrid(view.year, view.month)
-  const events = useAreaEvents(orgId, city, grid.from, grid.to)
+  const events = useAreaEvents(orgId, place, grid.from, grid.to)
   const list = events.data ?? []
   const today = todayDay()
 

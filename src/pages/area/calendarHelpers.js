@@ -43,3 +43,10 @@ export function eventDates(event) {
   const b = parseDay(event.endsOn)
   return a.getMonth() === b.getMonth() ? `${fmt(event.startsOn, false)} to ${fmt(event.endsOn)}` : `${fmt(event.startsOn)} to ${fmt(event.endsOn)}`
 }
+
+/** "Randburg, Johannesburg", "Durban", "All areas" or our own city. */
+export function placeLabel(place, ownCity) {
+  if (!place) return ownCity ? `${ownCity} (our area)` : 'our area'
+  if (place.all) return 'All areas'
+  return [place.suburb, place.city].filter(Boolean).join(', ')
+}

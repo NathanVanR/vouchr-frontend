@@ -83,11 +83,17 @@ export const answerProjectParticipant = (participantId, action) =>
 // ---- Area: organisations in the same city, their projects and a shared calendar ----
 /** { cities, defaultCity } */
 export const getAreaCities = (forOrgId) => get(`/api/area/cities?forOrgId=${forOrgId}`)
-export const getAreaOrganizations = (forOrgId, city) =>
-  get(`/api/area/organizations?forOrgId=${forOrgId}${city ? `&city=${encodeURIComponent(city)}` : ''}`)
+/** place: null (our own city) | { city, suburb } | { all: true } */
+const placeParams = (place) => {
+  if (!place) return ''
+  if (place.all) return '&all=true'
+  return `${place.city ? `&city=${encodeURIComponent(place.city)}` : ''}${place.suburb ? `&suburb=${encodeURIComponent(place.suburb)}` : ''}`
+}
+export const getAreaOrganizations = (forOrgId, place) => get(`/api/area/organizations?forOrgId=${forOrgId}${placeParams(place)}`)
+/** Cities and suburbs that have organisations, matching q (2+ characters); with no q the cities. */
+export const getAreaPlaces = (forOrgId, q) => get(`/api/area/places?forOrgId=${forOrgId}${q ? `&q=${encodeURIComponent(q)}` : ''}`)
 export const getAreaOrgProjects = (orgId, forOrgId) => get(`/api/area/organizations/${orgId}/projects?forOrgId=${forOrgId}`)
-export const getAreaEvents = (forOrgId, city, from, to) =>
-  get(`/api/area/events?forOrgId=${forOrgId}&from=${from}&to=${to}${city ? `&city=${encodeURIComponent(city)}` : ''}`)
+export const getAreaEvents = (forOrgId, place, from, to) => get(`/api/area/events?forOrgId=${forOrgId}&from=${from}&to=${to}${placeParams(place)}`)
 export const getAreaClashes = (forOrgId, startsOn, endsOn, type) =>
   get(`/api/area/events/clashes?forOrgId=${forOrgId}&startsOn=${startsOn}&type=${type}${endsOn ? `&endsOn=${endsOn}` : ''}`)
 /** A project's own dated events (its page). */

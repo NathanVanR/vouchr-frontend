@@ -203,6 +203,40 @@ function inDays(n) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/** Where an organisation is: the demo organisation sits in Cape Town, the others come from the area list. */
+function orgPlace(state, id) {
+  return state.areaOrgs.find(o => o.organizationId === id) || { city: 'Cape Town', suburb: 'Woodstock' };
+}
+
+/** Same rule as the server: all areas, or the chosen city and suburb (case-insensitive), or our own city when none is given. */
+function inPlace(org, query) {
+  if (query.get('all') === 'true') return true;
+  const city = (query.get('city') || '').toLowerCase();
+  const suburb = (query.get('suburb') || '').toLowerCase();
+  if (!city && !suburb) return (org.city || '').toLowerCase() === 'cape town';
+  return (!city || (org.city || '').toLowerCase() === city) && (!suburb || (org.suburb || '').toLowerCase() === suburb);
+}
+
+/** City and suburb search over the demo organisations' addresses, like GET /api/area/places. */
+function demoPlaces(state, term) {
+  const searching = term.length >= 2;
+  const orgs = [...state.areaOrgs, { organizationId: 'demo-own', city: 'Cape Town', suburb: 'Woodstock' }];
+  const cities = new Map();
+  const suburbs = new Map();
+  for (const o of orgs) {
+    if (!searching || o.city.toLowerCase().includes(term)) cities.set(o.city, (cities.get(o.city) || 0) + 1);
+    if (searching && o.suburb && o.suburb.toLowerCase().includes(term)) {
+      const key = `${o.suburb}|${o.city}`;
+      suburbs.set(key, (suburbs.get(key) || 0) + 1);
+    }
+  }
+  const byName = (a, b) => (a.suburb || a.city).localeCompare(b.suburb || b.city);
+  return [
+    ...[...cities].map(([city, organizationCount]) => ({ city, suburb: null, organizationCount })).sort(byName),
+    ...[...suburbs].map(([key, organizationCount]) => { const [suburb, city] = key.split('|'); return { city, suburb, organizationCount }; }).sort(byName)
+  ];
+}
+
 function organizationName(state, id) {
   return state.organizations[id]?.name || state.areaOrgs.find(o => o.organizationId === id)?.name || 'Organisation';
 }
@@ -231,19 +265,26 @@ export async function demoRequest(endpoint, options = {}) {
     { organizationId: PARTNER_ORG_ID, name: 'Hope Kitchen Collective', orgType: 'NPO', suburb: 'Woodstock', city: 'Cape Town' },
     { organizationId: 'demo-org-3', name: 'Harbour Food Bank', orgType: 'NPO', suburb: 'Salt River', city: 'Cape Town' },
     { organizationId: 'demo-org-4', name: 'Ubuntu Learning Project', orgType: 'NPO', suburb: 'Khayelitsha', city: 'Cape Town' },
-    { organizationId: 'demo-org-6', name: 'Table Bay Soup Kitchen', orgType: 'NPO', suburb: 'Bo-Kaap', city: 'Cape Town' }
+    { organizationId: 'demo-org-6', name: 'Table Bay Soup Kitchen', orgType: 'NPO', suburb: 'Bo-Kaap', city: 'Cape Town' },
+    { organizationId: 'demo-org-7', name: 'Randburg Relief Centre', orgType: 'NPO', suburb: 'Randburg', city: 'Johannesburg' },
+    { organizationId: 'demo-org-8', name: 'Sandton Community Pantry', orgType: 'NPO', suburb: 'Sandton', city: 'Johannesburg' },
+    { organizationId: 'demo-org-9', name: 'Umhlanga Helping Hands', orgType: 'NPO', suburb: 'Umhlanga', city: 'Durban' }
   ];
   state.areaProjects = state.areaProjects || [
     { projectId: 'demo-ap-1', organizationId: 'demo-org-3', name: 'Monthly food parcels', projectType: 'FEEDING_SCHEME', description: 'Parcels for 120 households.', mode: 'DISTRIBUTE', openHandout: false },
     { projectId: 'demo-ap-2', organizationId: 'demo-org-3', name: 'Winter blanket drive', projectType: 'OTHER', typeLabel: 'Blanket drive', description: 'Collecting new and second-hand blankets.', mode: 'BOTH', openHandout: false, startsOn: inDays(3), endsOn: inDays(30) },
     { projectId: 'demo-ap-3', organizationId: 'demo-org-4', name: 'Homework club', projectType: 'OTHER', typeLabel: 'After-school club', description: 'Free homework help three afternoons a week.', mode: 'DISTRIBUTE', openHandout: false },
-    { projectId: 'demo-ap-4', organizationId: 'demo-org-6', name: 'Saturday soup run', projectType: 'FEEDING_SCHEME', description: 'Hot soup for anyone who needs it.', mode: 'DISTRIBUTE', openHandout: true }
+    { projectId: 'demo-ap-4', organizationId: 'demo-org-6', name: 'Saturday soup run', projectType: 'FEEDING_SCHEME', description: 'Hot soup for anyone who needs it.', mode: 'DISTRIBUTE', openHandout: true },
+    { projectId: 'demo-ap-5', organizationId: 'demo-org-7', name: 'School shoe drive', projectType: 'OTHER', typeLabel: 'Shoe drive', description: 'Collecting school shoes for the new term.', mode: 'BOTH', openHandout: false, startsOn: inDays(6), endsOn: inDays(20) },
+    { projectId: 'demo-ap-6', organizationId: 'demo-org-8', name: 'Weekly pantry', projectType: 'FEEDING_SCHEME', description: 'Groceries for families in need.', mode: 'DISTRIBUTE', openHandout: false },
+    { projectId: 'demo-ap-7', organizationId: 'demo-org-9', name: 'Beach clean-up and braai', projectType: 'OTHER', typeLabel: 'Fundraiser', description: 'Community day raising money for the pantry.', mode: 'DISTRIBUTE', openHandout: true }
   ];
   state.areaRequested = state.areaRequested || [];
   state.areaEvents = state.areaEvents || [
     { eventId: 'demo-ev-a1', organizationId: PARTNER_ORG_ID, title: 'Bake sale at the market', eventType: 'FUNDRAISER', startsOn: inDays(5), endsOn: inDays(5), timeNote: '09:00 to 13:00', location: 'Biscuit Mill market', description: 'Funds for the soup kitchen.' },
     { eventId: 'demo-ev-a2', organizationId: 'demo-org-3', title: 'Blanket collection day', eventType: 'DRIVE', startsOn: inDays(8), endsOn: inDays(9), timeNote: null, location: 'Salt River hall', description: null },
-    { eventId: 'demo-ev-a3', organizationId: 'demo-org-4', title: 'Volunteer meet-up', eventType: 'MEETING', startsOn: inDays(12), endsOn: inDays(12), timeNote: '18:00', location: null, description: null }
+    { eventId: 'demo-ev-a3', organizationId: 'demo-org-4', title: 'Volunteer meet-up', eventType: 'MEETING', startsOn: inDays(12), endsOn: inDays(12), timeNote: '18:00', location: null, description: null },
+    { eventId: 'demo-ev-a4', organizationId: 'demo-org-9', title: 'Umhlanga fundraising braai', eventType: 'FUNDRAISER', startsOn: inDays(7), endsOn: inDays(7), timeNote: '12:00 to 16:00', location: 'Umhlanga promenade', description: null }
   ];
   state.stockItems = state.stockItems || [{ stockItemId: 'demo-si-1', projectId: 'demo-proj-2', name: 'Reading glasses', targetQuantity: 100 }];
   state.receipts = state.receipts || [{ receiptId: 'demo-rc-1', projectId: 'demo-proj-2', organizationId: DEMO_ORG_ID, stockItemId: 'demo-si-1', quantity: 24, description: null, donor: 'Local optometrist', receivedOn: new Date(Date.now() - 20 * 864e5).toISOString().slice(0, 10), recordedByName: 'Demo Admin' }];
@@ -365,10 +406,11 @@ export async function demoRequest(endpoint, options = {}) {
   // The area view: other organisations in the same city, their projects and a shared calendar
   } else if (path === '/api/area/cities') {
     result = { cities: ['Cape Town', 'Durban'], defaultCity: 'Cape Town' };
+  } else if (path === '/api/area/places') {
+    result = demoPlaces(state, (query.get('q') || '').trim().toLowerCase());
   } else if (path === '/api/area/organizations') {
-    const city = query.get('city') || 'Cape Town';
     const partnerIds = state.partnerships.filter(x => x.status === 'ACTIVE').flatMap(x => [x.requesterOrganizationId, x.partnerOrganizationId]);
-    result = state.areaOrgs.filter(o => o.city === city).map(o => ({
+    result = state.areaOrgs.filter(o => inPlace(o, query)).map(o => ({
       ...o, projectCount: state.areaProjects.filter(ap => ap.organizationId === o.organizationId).length,
       partner: partnerIds.includes(o.organizationId)
     }));
@@ -378,9 +420,10 @@ export async function demoRequest(endpoint, options = {}) {
   } else if (path === '/api/area/events') {
     const from = query.get('from');
     const to = query.get('to');
-    const events = state.areaEvents.filter(e => e.startsOn <= to && e.endsOn >= from);
+    const events = state.areaEvents.filter(e => e.startsOn <= to && e.endsOn >= from && inPlace(orgPlace(state, e.organizationId), query));
     const runs = [...state.projects, ...state.areaProjects]
-      .filter(pr => pr.startsOn && pr.status !== 'ARCHIVED' && pr.startsOn <= to && (pr.endsOn || pr.startsOn) >= from)
+      .filter(pr => pr.startsOn && pr.status !== 'ARCHIVED' && pr.startsOn <= to && (pr.endsOn || pr.startsOn) >= from
+        && inPlace(orgPlace(state, pr.organizationId), query))
       .map(pr => ({ eventId: pr.projectId, organizationId: pr.organizationId, organizationName: organizationName(state, pr.organizationId),
         projectId: pr.projectId, projectName: pr.name, title: pr.name, startsOn: pr.startsOn, endsOn: pr.endsOn || pr.startsOn,
         description: pr.description, hiddenFromArea: false, projectRun: true, clash: false, canEdit: false }));
