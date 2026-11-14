@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt', // the page asks to reload (UpdatePrompt) instead of running stale code after a deploy
       includeAssets: ['favicon.svg'],
       manifest: {
         name: 'Vouchr',
