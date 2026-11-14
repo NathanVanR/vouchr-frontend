@@ -8,10 +8,13 @@ export const SERVICE_LABELS = {
   DOCTOR_VISIT: 'Doctor visit',
   NURSE_VISIT: 'Nurse visit',
   BUDGETING_HELP: 'Help with budgeting',
+  SPIRITUAL_CARE: 'Church / spiritual care',
+  MEDICATION: 'Medication',
+  CHECK_IN: 'Check-in',
   OTHER: 'Other',
 }
 
-/** The services a project can require someone to be receiving before they get aid. */
+/** The services a project can require someone to be receiving before they take part. */
 export const PREREQUISITE_SERVICES = {
   COUNSELLING: SERVICE_LABELS.COUNSELLING,
   COURSE: SERVICE_LABELS.COURSE,
@@ -24,6 +27,38 @@ export const PROJECT_TYPE_LABELS = {
   SCHOOL_SUPPLIES_DRIVE: 'School supplies drive',
   CLOTHING_DRIVE: 'Clothing drive',
   OTHER: 'Other',
+}
+
+export const PROJECT_MODE_LABELS = {
+  COLLECT: 'Collecting donations',
+  DISTRIBUTE: 'Giving things out',
+  BOTH: 'Collecting and giving out',
+}
+
+/** Names of the details a profile can be missing (match Person.missingFields on the backend). */
+export const MISSING_FIELD_LABELS = {
+  gender: 'gender',
+  dateOfBirth: 'date of birth',
+  idNumber: 'ID number',
+  phoneNumber: 'phone number',
+  address: 'address',
+  school: 'school',
+}
+
+export const EVENT_TYPE_LABELS = {
+  FUNDRAISER: 'Fundraiser',
+  DRIVE: 'Collection drive',
+  HANDOUT: 'Handout',
+  MEETING: 'Meeting',
+  OTHER: 'Other',
+}
+
+/** How the viewing organisation relates to a project in the area view. */
+export const AREA_RELATIONSHIP_LABELS = {
+  OWNER: ['ok', 'Ours'],
+  PARTICIPANT: ['ok', 'Taking part'],
+  REQUESTED: ['info', 'Requested'],
+  INVITED: ['info', 'Invited'],
 }
 
 export const CARE_STATUS_LABELS = {

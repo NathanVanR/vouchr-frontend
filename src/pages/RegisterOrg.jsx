@@ -111,7 +111,7 @@ function Form() {
             <input value={form.complexName} onChange={set('complexName')} placeholder="The Palms" />
           </Field>
         </div>
-        <Field label="Street address" hint="Street number and street name, for example 12 Mandela Way.">
+        <Field label="Street address">
           <input
             value={form.streetAddress}
             onChange={set('streetAddress')}

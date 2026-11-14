@@ -28,6 +28,7 @@ export const router = createBrowserRouter([
       { path: 'people', lazy: page(() => import('./pages/people/People.jsx')) },
       { path: 'families', lazy: page(() => import('./pages/families/Families.jsx')) },
       { path: 'partners', lazy: page(() => import('./pages/partners/Partners.jsx')) },
+      { path: 'area', lazy: page(() => import('./pages/area/Area.jsx')) },
       { path: 'team', lazy: page(() => import('./pages/admin/Team.jsx')) },
       { path: 'platform', lazy: page(() => import('./pages/admin/Platform.jsx')) },
     ],

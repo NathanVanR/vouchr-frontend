@@ -57,6 +57,19 @@ export const updateProject = (projectId, payload) => patch(`/api/projects/${proj
 export const getBeneficiaries = (projectId) => get(`/api/projects/${projectId}/beneficiaries`)
 export const addBeneficiary = (projectId, payload) => post(`/api/projects/${projectId}/beneficiaries`, payload)
 
+// What a project collects (receipts) and gives out (handouts), plus the optional stock items it keeps counts for
+export const getStockItems = (projectId) => get(`/api/projects/${projectId}/stock-items`)
+export const addStockItem = (projectId, payload) => post(`/api/projects/${projectId}/stock-items`, payload)
+export const updateStockItem = (stockItemId, payload) => patch(`/api/stock-items/${stockItemId}`, payload)
+export const getReceipts = (projectId) => get(`/api/projects/${projectId}/receipts`)
+export const addReceipt = (projectId, payload) => post(`/api/projects/${projectId}/receipts`, payload)
+export const deleteReceipt = (receiptId) => del(`/api/receipts/${receiptId}`)
+export const getHandouts = (projectId) => get(`/api/projects/${projectId}/handouts`)
+export const addHandout = (projectId, payload) => post(`/api/projects/${projectId}/handouts`, payload)
+export const deleteHandout = (handoutId) => del(`/api/handouts/${handoutId}`)
+/** What a person has received through projects (their own organisation's staff only). */
+export const getReceived = (personId) => get(`/api/people/${personId}/received`)
+
 // Other organisations working on a project (invited by the owner's admin, accepted by theirs)
 export const getProjectParticipants = (projectId) => get(`/api/projects/${projectId}/participants`)
 export const inviteProjectParticipant = (projectId, organizationId) =>
@@ -66,12 +79,33 @@ export const getProjectInvitations = (orgId) => get(`/api/organizations/${orgId}
 export const answerProjectParticipant = (participantId, action) =>
   post(`/api/project-participants/${participantId}/${action}`)
 
-// ---- Giving aid: sessions (e.g. a weekly soup run) and the people who received aid in each ----
-export const getProjectSessions = (projectId) => get(`/api/projects/${projectId}/sessions`)
-export const openProjectSession = (projectId, payload) => post(`/api/projects/${projectId}/sessions`, payload)
-export const getAidSession = (sessionId) => get(`/api/sessions/${sessionId}`)
-export const giveAid = (sessionId, payload) => post(`/api/sessions/${sessionId}/handovers`, payload)
-export const undoAid = (handoverId) => del(`/api/handovers/${handoverId}`)
+
+// ---- Area: organisations in the same city, their projects and a shared calendar ----
+/** { cities, defaultCity } */
+export const getAreaCities = (forOrgId) => get(`/api/area/cities?forOrgId=${forOrgId}`)
+export const getAreaOrganizations = (forOrgId, city) =>
+  get(`/api/area/organizations?forOrgId=${forOrgId}${city ? `&city=${encodeURIComponent(city)}` : ''}`)
+export const getAreaOrgProjects = (orgId, forOrgId) => get(`/api/area/organizations/${orgId}/projects?forOrgId=${forOrgId}`)
+export const getAreaEvents = (forOrgId, city, from, to) =>
+  get(`/api/area/events?forOrgId=${forOrgId}&from=${from}&to=${to}${city ? `&city=${encodeURIComponent(city)}` : ''}`)
+export const getAreaClashes = (forOrgId, startsOn, endsOn, type) =>
+  get(`/api/area/events/clashes?forOrgId=${forOrgId}&startsOn=${startsOn}&type=${type}${endsOn ? `&endsOn=${endsOn}` : ''}`)
+/** A project's own dated events (its page). */
+export const getProjectEvents = (projectId) => get(`/api/projects/${projectId}/events`)
+export const createAreaEvent = (orgId, payload) => post(`/api/organizations/${orgId}/events`, payload)
+export const updateAreaEvent = (eventId, payload) => put(`/api/events/${eventId}`, payload)
+export const deleteAreaEvent = (eventId) => del(`/api/events/${eventId}`)
+/** Ask to take part in a project we do not own (the owner's admin answers). */
+export const requestToJoinProject = (projectId, organizationId) => post(`/api/projects/${projectId}/join-requests`, { organizationId })
+export const getProjectJoinRequests = (orgId) => get(`/api/organizations/${orgId}/project-join-requests`)
+
+// ---- Asking a partner to complete a partly filled profile (the person stays with the requesting organisation) ----
+export const createProfileRequest = (personId, payload) => post(`/api/people/${personId}/profile-requests`, payload)
+export const getPersonProfileRequests = (personId) => get(`/api/people/${personId}/profile-requests`)
+/** direction: "incoming" (open requests partners made of us) | "outgoing" */
+export const getOrgProfileRequests = (orgId, direction) => get(`/api/organizations/${orgId}/profile-requests?direction=${direction}`)
+export const completeProfileRequest = (requestId, payload) => post(`/api/profile-requests/${requestId}/complete`, payload)
+export const cancelProfileRequest = (requestId) => post(`/api/profile-requests/${requestId}/cancel`)
 
 // ---- People & consent ----
 export const getPeople = (orgId) => get(`/api/organizations/${orgId}/people`)
@@ -121,6 +155,9 @@ export const answerPartnership = (partnershipId, action) => post(`/api/partnersh
 export const getFamilyCarePlan = (familyId) => get(`/api/families/${familyId}/care-plan`)
 export const addFamilyCarePlanItem = (familyId, payload) => post(`/api/families/${familyId}/care-plan`, payload)
 export const getPersonCarePlan = (personId) => get(`/api/people/${personId}/care-plan`)
+/** Every check-in and status change on a person's (and their family's) care plan items, newest first. */
+export const getCareHistory = (personId) => get(`/api/people/${personId}/care-history`)
+export const getCareItemEvents = (itemId) => get(`/api/care-plan-items/${itemId}/events`)
 export const addPersonCarePlanItem = (personId, payload) => post(`/api/people/${personId}/care-plan`, payload)
 /** direction: "incoming" (we provide: a name search, q needs 2+ characters) | "outgoing" (we asked others) */
 export const getCarePlanItems = (orgId, direction, q = '') =>

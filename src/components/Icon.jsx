@@ -53,6 +53,18 @@ const PATHS = {
     </>
   ),
   edit: <path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" />,
+  calendar: (
+    <>
+      <rect x="4" y="5.5" width="16" height="14" rx="2.5" />
+      <path d="M4 10h16M9 3.5v4M15 3.5v4" />
+    </>
+  ),
+  history: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 2" />
+    </>
+  ),
 }
 
 export default function Icon({ name, small = false }) {

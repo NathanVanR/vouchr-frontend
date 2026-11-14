@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import {
-  getCarePlanItems, getFamilies, getFamily, getFamilyCarePlan, getOrgServices, getPartnerships, getPersonCarePlan, getReferrals,
+  getCareHistory, getCarePlanItems, getFamilies, getFamily, getFamilyCarePlan, getOrgServices, getPartnerships, getPersonCarePlan, getReferrals,
 } from '../lib/api.js'
 
 export const familyKeys = {
@@ -27,6 +27,9 @@ export const useCarePlan = (kind, id, enabled = true) =>
     enabled: !!id && enabled,
     gcTime: 0,
   })
+
+export const useCareHistory = (personId) =>
+  useQuery({ queryKey: ['care-history', personId], queryFn: () => getCareHistory(personId), enabled: !!personId, gcTime: 0 })
 
 export const useOrgServices = (orgId) =>
   useQuery({ queryKey: ['org-services', orgId], queryFn: () => getOrgServices(orgId), enabled: !!orgId })
