@@ -26,9 +26,9 @@ function seed() {
     ],
     projects: [
       { projectId: 'demo-proj-1', organizationId: DEMO_ORG_ID, name: 'Winter feeding scheme', projectType: 'FEEDING_SCHEME',
-        description: 'Daily hot meals for learners at three local primary schools.', status: 'ACTIVE' },
-      { projectId: 'demo-proj-2', organizationId: DEMO_ORG_ID, name: 'Reading glasses drive', projectType: 'GLASSES_DRIVE',
-        description: 'Eye tests and free reading glasses for pensioners.', status: 'ACTIVE' },
+        description: 'Daily hot meals for learners at three local primary schools.', status: 'ACTIVE', startsOn: inDays(-20), endsOn: inDays(40) },
+      { projectId: 'demo-proj-2', organizationId: DEMO_ORG_ID, name: 'Reading glasses drive', projectType: 'GLASSES_DRIVE', mode: 'BOTH',
+        description: 'Eye tests and free reading glasses for pensioners.', status: 'ACTIVE', startsOn: inDays(10), endsOn: inDays(24) },
       { projectId: 'demo-proj-3', organizationId: DEMO_ORG_ID, name: 'Back-to-school supplies 2025', projectType: 'SCHOOL_SUPPLIES_DRIVE',
         description: 'Stationery packs for the start of the school year.', status: 'ARCHIVED' },
       { projectId: 'demo-proj-4', organizationId: PARTNER_ORG_ID, name: 'Saturday soup run', projectType: 'FEEDING_SCHEME',
@@ -165,11 +165,46 @@ function projectView(state, p) {
   const own = p.organizationId === DEMO_ORG_ID;
   return {
     ...p,
+    mode: p.mode || 'DISTRIBUTE',
+    openHandout: !!p.openHandout,
     organizationName: state.organizations[p.organizationId]?.name || '',
     canEdit: own,
     participant: !own,
     canAdmin: own
   };
+}
+
+function demoStock(state, item) {
+  const received = state.receipts.filter(r => r.stockItemId === item.stockItemId).reduce((n, r) => n + (r.quantity || 0), 0);
+  const given = state.handouts.filter(h => h.stockItemId === item.stockItemId).reduce((n, h) => n + h.quantity, 0);
+  return { ...item, received, given, onHand: received - given };
+}
+
+function demoHandout(state, h) {
+  const person = h.personId ? state.people.find(x => x.personId === h.personId) : null;
+  return { ...h, projectName: state.projects.find(p => p.projectId === h.projectId)?.name || '',
+    organizationName: state.organizations[h.organizationId].name, personName: person ? `${person.name} ${person.surname}` : null,
+    stockItemName: state.stockItems.find(i => i.stockItemId === h.stockItemId)?.name || null, canDelete: true };
+}
+
+function recordCareEvent(state, item, eventType, { fromStatus = null, toStatus = null, note = null, nextId }) {
+  state.careEvents.push({
+    eventId: nextId('demo-ev'), itemId: item.itemId, serviceType: item.serviceType, serviceLabel: item.serviceLabel || null,
+    familyName: item.familyName || null, requestingOrganizationName: item.requestingOrganizationName,
+    providerOrganizationName: item.providerOrganizationName, internal: item.internal, eventType, fromStatus, toStatus, note,
+    actedByName: 'Demo Admin', actedByOrganizationName: state.organizations[DEMO_ORG_ID].name, occurredAt: new Date().toISOString()
+  });
+}
+
+/** A "YYYY-MM-DD" date this many days from today, in local time. */
+function inDays(n) {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function organizationName(state, id) {
+  return state.organizations[id]?.name || state.areaOrgs.find(o => o.organizationId === id)?.name || 'Organisation';
 }
 
 function nameOf(person) {
@@ -190,6 +225,29 @@ export async function demoRequest(endpoint, options = {}) {
     requestedByName: 'Demo Admin', createdDate: ago(30)
   }];
   state.carePlan = state.carePlan || [];
+  state.careEvents = state.careEvents || [];
+  state.profileRequests = state.profileRequests || [];
+  state.areaOrgs = state.areaOrgs || [
+    { organizationId: PARTNER_ORG_ID, name: 'Hope Kitchen Collective', orgType: 'NPO', suburb: 'Woodstock', city: 'Cape Town' },
+    { organizationId: 'demo-org-3', name: 'Harbour Food Bank', orgType: 'NPO', suburb: 'Salt River', city: 'Cape Town' },
+    { organizationId: 'demo-org-4', name: 'Ubuntu Learning Project', orgType: 'NPO', suburb: 'Khayelitsha', city: 'Cape Town' },
+    { organizationId: 'demo-org-6', name: 'Table Bay Soup Kitchen', orgType: 'NPO', suburb: 'Bo-Kaap', city: 'Cape Town' }
+  ];
+  state.areaProjects = state.areaProjects || [
+    { projectId: 'demo-ap-1', organizationId: 'demo-org-3', name: 'Monthly food parcels', projectType: 'FEEDING_SCHEME', description: 'Parcels for 120 households.', mode: 'DISTRIBUTE', openHandout: false },
+    { projectId: 'demo-ap-2', organizationId: 'demo-org-3', name: 'Winter blanket drive', projectType: 'OTHER', typeLabel: 'Blanket drive', description: 'Collecting new and second-hand blankets.', mode: 'BOTH', openHandout: false, startsOn: inDays(3), endsOn: inDays(30) },
+    { projectId: 'demo-ap-3', organizationId: 'demo-org-4', name: 'Homework club', projectType: 'OTHER', typeLabel: 'After-school club', description: 'Free homework help three afternoons a week.', mode: 'DISTRIBUTE', openHandout: false },
+    { projectId: 'demo-ap-4', organizationId: 'demo-org-6', name: 'Saturday soup run', projectType: 'FEEDING_SCHEME', description: 'Hot soup for anyone who needs it.', mode: 'DISTRIBUTE', openHandout: true }
+  ];
+  state.areaRequested = state.areaRequested || [];
+  state.areaEvents = state.areaEvents || [
+    { eventId: 'demo-ev-a1', organizationId: PARTNER_ORG_ID, title: 'Bake sale at the market', eventType: 'FUNDRAISER', startsOn: inDays(5), endsOn: inDays(5), timeNote: '09:00 to 13:00', location: 'Biscuit Mill market', description: 'Funds for the soup kitchen.' },
+    { eventId: 'demo-ev-a2', organizationId: 'demo-org-3', title: 'Blanket collection day', eventType: 'DRIVE', startsOn: inDays(8), endsOn: inDays(9), timeNote: null, location: 'Salt River hall', description: null },
+    { eventId: 'demo-ev-a3', organizationId: 'demo-org-4', title: 'Volunteer meet-up', eventType: 'MEETING', startsOn: inDays(12), endsOn: inDays(12), timeNote: '18:00', location: null, description: null }
+  ];
+  state.stockItems = state.stockItems || [{ stockItemId: 'demo-si-1', projectId: 'demo-proj-2', name: 'Reading glasses', targetQuantity: 100 }];
+  state.receipts = state.receipts || [{ receiptId: 'demo-rc-1', projectId: 'demo-proj-2', organizationId: DEMO_ORG_ID, stockItemId: 'demo-si-1', quantity: 24, description: null, donor: 'Local optometrist', receivedOn: new Date(Date.now() - 20 * 864e5).toISOString().slice(0, 10), recordedByName: 'Demo Admin' }];
+  state.handouts = state.handouts || [];
   const path = endpoint.split('?')[0];
   const query = new URLSearchParams(endpoint.split('?')[1] || '');
   let m;
@@ -205,7 +263,9 @@ export async function demoRequest(endpoint, options = {}) {
         .map(p => projectView(state, p));
     } else {
       const project = { projectId: nextId('demo-proj'), organizationId: m[1], name: body.name, projectType: body.projectType,
-        typeLabel: body.typeLabel || null, description: body.description, status: 'ACTIVE' };
+        typeLabel: body.typeLabel || null, description: body.description, status: 'ACTIVE',
+        mode: body.mode || 'DISTRIBUTE', openHandout: !!body.openHandout,
+        startsOn: body.startsOn || null, endsOn: body.endsOn || null };
       state.projects.push(project);
       result = projectView(state, project);
     }
@@ -213,9 +273,11 @@ export async function demoRequest(endpoint, options = {}) {
     const project = state.projects.find(p => p.projectId === m[1]);
     if (!project) throw new Error('Project not found');
     if (method === 'PATCH') {
-      const { clearRequiredService, ...changes } = body;
+      const { clearRequiredService, clearStartsOn, clearEndsOn, ...changes } = body;
       Object.assign(project, changes);
       if (clearRequiredService) project.requiredServiceType = null;
+      if (clearStartsOn) project.startsOn = null;
+      if (clearEndsOn) project.endsOn = null;
     }
     result = projectView(state, project);
   } else if ((m = path.match(/^\/api\/projects\/([^/]+)\/beneficiaries$/))) {
@@ -234,6 +296,131 @@ export async function demoRequest(endpoint, options = {}) {
         .map(b => ({ ...b, organizationName: state.organizations[project.organizationId].name, registeredByName: 'Partner staff' }));
     }
 
+  // What a project collects and gives out
+  } else if ((m = path.match(/^\/api\/projects\/([^/]+)\/stock-items$/))) {
+    if (method === 'POST') {
+      const item = { stockItemId: nextId('demo-si'), projectId: m[1], name: body.name, targetQuantity: body.targetQuantity || null };
+      state.stockItems.push(item);
+    }
+    result = method === 'POST' ? demoStock(state, state.stockItems[state.stockItems.length - 1]) : state.stockItems.filter(i => i.projectId === m[1]).map(i => demoStock(state, i));
+  } else if ((m = path.match(/^\/api\/stock-items\/([^/]+)$/))) {
+    const item = state.stockItems.find(i => i.stockItemId === m[1]);
+    if (body.name) item.name = body.name;
+    if (body.clearTarget) item.targetQuantity = null; else if (body.targetQuantity) item.targetQuantity = body.targetQuantity;
+    result = demoStock(state, item);
+  } else if ((m = path.match(/^\/api\/projects\/([^/]+)\/receipts$/))) {
+    if (method === 'POST') {
+      const item = state.stockItems.find(i => i.stockItemId === body.stockItemId);
+      state.receipts.push({ receiptId: nextId('demo-rc'), projectId: m[1], organizationId: body.organizationId, stockItemId: body.stockItemId || null,
+        quantity: body.quantity || null, description: body.description || item?.name || null, donor: body.donor || null,
+        receivedOn: body.receivedOn, recordedByName: 'Demo Admin' });
+      result = {};
+    } else {
+      result = state.receipts.filter(r => r.projectId === m[1]).map(r => ({ ...r, organizationName: state.organizations[r.organizationId].name,
+        stockItemName: state.stockItems.find(i => i.stockItemId === r.stockItemId)?.name || null, canDelete: true }));
+    }
+  } else if ((m = path.match(/^\/api\/receipts\/([^/]+)$/))) {
+    state.receipts = state.receipts.filter(r => r.receiptId !== m[1]);
+    result = null;
+  } else if ((m = path.match(/^\/api\/projects\/([^/]+)\/handouts$/))) {
+    if (method === 'POST') {
+      state.handouts.push({ handoutId: nextId('demo-ho'), projectId: m[1], organizationId: body.organizationId, stockItemId: body.stockItemId || null,
+        quantity: body.quantity || 1, description: body.description || null, personId: body.personId || null, peopleCount: body.peopleCount || null,
+        handedOn: body.handedOn, givenByName: 'Demo Admin' });
+      result = {};
+    } else {
+      result = { entries: state.handouts.filter(h => h.projectId === m[1]).map(h => demoHandout(state, h)), hiddenCount: 0 };
+    }
+  } else if ((m = path.match(/^\/api\/handouts\/([^/]+)$/))) {
+    state.handouts = state.handouts.filter(h => h.handoutId !== m[1]);
+    result = null;
+  } else if ((m = path.match(/^\/api\/people\/([^/]+)\/received$/))) {
+    result = state.handouts.filter(h => h.personId === m[1]).map(h => demoHandout(state, h));
+
+  // Asking a partner to complete a profile (nobody else uses the demo, so nothing is ever asked of the demo organisation)
+  } else if ((m = path.match(/^\/api\/people\/([^/]+)\/profile-requests$/))) {
+    if (method === 'POST') {
+      const person = state.people.find(x => x.personId === m[1]);
+      const partner = state.organizations[body.assigneeOrganizationId] || { name: 'Partner organisation' };
+      const request = { requestId: nextId('demo-pr'), personId: m[1], personName: `${person.name} ${person.surname}`,
+        requestingOrganizationId: DEMO_ORG_ID, requestingOrganizationName: state.organizations[DEMO_ORG_ID].name,
+        assigneeOrganizationId: body.assigneeOrganizationId, assigneeOrganizationName: partner.name, status: 'OPEN',
+        note: body.note || null, missingFields: person.missingFields || [], requestedByName: 'Demo Admin', createdDate: new Date().toISOString(),
+        canComplete: false, canCancel: true };
+      state.profileRequests.push(request);
+      result = request;
+    } else {
+      result = state.profileRequests.filter(r => r.personId === m[1]);
+    }
+  } else if ((m = path.match(/^\/api\/organizations\/([^/]+)\/profile-requests$/))) {
+    result = query.get('direction') === 'outgoing' ? state.profileRequests : [];
+  } else if ((m = path.match(/^\/api\/profile-requests\/([^/]+)\/cancel$/))) {
+    const request = state.profileRequests.find(r => r.requestId === m[1]);
+    request.status = 'CANCELLED';
+    request.canCancel = false;
+    result = request;
+  } else if (path.match(/^\/api\/profile-requests\/([^/]+)\/complete$/)) {
+    throw new Error('Only a partner organisation can complete a profile, which the demo cannot show');
+
+  // The area view: other organisations in the same city, their projects and a shared calendar
+  } else if (path === '/api/area/cities') {
+    result = { cities: ['Cape Town', 'Durban'], defaultCity: 'Cape Town' };
+  } else if (path === '/api/area/organizations') {
+    const city = query.get('city') || 'Cape Town';
+    const partnerIds = state.partnerships.filter(x => x.status === 'ACTIVE').flatMap(x => [x.requesterOrganizationId, x.partnerOrganizationId]);
+    result = state.areaOrgs.filter(o => o.city === city).map(o => ({
+      ...o, projectCount: state.areaProjects.filter(ap => ap.organizationId === o.organizationId).length,
+      partner: partnerIds.includes(o.organizationId)
+    }));
+  } else if ((m = path.match(/^\/api\/area\/organizations\/([^/]+)\/projects$/))) {
+    result = state.areaProjects.filter(ap => ap.organizationId === m[1])
+      .map(ap => ({ ...ap, relationship: state.areaRequested.includes(ap.projectId) ? 'REQUESTED' : 'NONE' }));
+  } else if (path === '/api/area/events') {
+    const from = query.get('from');
+    const to = query.get('to');
+    const events = state.areaEvents.filter(e => e.startsOn <= to && e.endsOn >= from);
+    const runs = [...state.projects, ...state.areaProjects]
+      .filter(pr => pr.startsOn && pr.status !== 'ARCHIVED' && pr.startsOn <= to && (pr.endsOn || pr.startsOn) >= from)
+      .map(pr => ({ eventId: pr.projectId, organizationId: pr.organizationId, organizationName: organizationName(state, pr.organizationId),
+        projectId: pr.projectId, projectName: pr.name, title: pr.name, startsOn: pr.startsOn, endsOn: pr.endsOn || pr.startsOn,
+        description: pr.description, hiddenFromArea: false, projectRun: true, clash: false, canEdit: false }));
+    result = events.map(e => ({
+      ...e, organizationName: organizationName(state, e.organizationId), hiddenFromArea: !!e.hiddenFromArea,
+      projectName: state.projects.find(pr => pr.projectId === e.projectId)?.name || null,
+      clash: e.eventType === 'FUNDRAISER' && events.some(o => o !== e && o.eventType === 'FUNDRAISER' && o.organizationId !== e.organizationId
+        && o.startsOn <= e.endsOn && o.endsOn >= e.startsOn),
+      canEdit: e.organizationId === DEMO_ORG_ID
+    })).concat(runs).sort((a, b) => (a.startsOn < b.startsOn ? -1 : 1));
+  } else if (path === '/api/area/events/clashes') {
+    const start = query.get('startsOn');
+    const end = query.get('endsOn') || start;
+    result = query.get('type') !== 'FUNDRAISER' ? [] : state.areaEvents
+      .filter(e => e.eventType === 'FUNDRAISER' && e.organizationId !== DEMO_ORG_ID && !e.hiddenFromArea && e.startsOn <= end && e.endsOn >= start)
+      .map(e => ({ ...e, organizationName: organizationName(state, e.organizationId), clash: true, canEdit: false }));
+  } else if ((m = path.match(/^\/api\/organizations\/([^/]+)\/events$/))) {
+    const event = { eventId: nextId('demo-ev'), organizationId: m[1], ...body, endsOn: body.endsOn || body.startsOn };
+    state.areaEvents.push(event);
+    result = event;
+  } else if ((m = path.match(/^\/api\/events\/([^/]+)$/))) {
+    if (method === 'DELETE') {
+      state.areaEvents = state.areaEvents.filter(e => e.eventId !== m[1]);
+      result = null;
+    } else {
+      const event = state.areaEvents.find(e => e.eventId === m[1]);
+      Object.assign(event, body, { endsOn: body.endsOn || body.startsOn });
+      result = event;
+    }
+  } else if ((m = path.match(/^\/api\/projects\/([^/]+)\/events$/))) {
+    result = state.areaEvents.filter(e => e.projectId === m[1]).map(e => ({
+      ...e, organizationName: organizationName(state, e.organizationId), hiddenFromArea: !!e.hiddenFromArea, clash: false,
+      canEdit: e.organizationId === DEMO_ORG_ID
+    })).sort((a, b) => (a.startsOn < b.startsOn ? -1 : 1));
+  } else if ((m = path.match(/^\/api\/projects\/([^/]+)\/join-requests$/))) {
+    state.areaRequested.push(m[1]);
+    result = { participantId: nextId('demo-pp'), projectId: m[1], status: 'REQUESTED' };
+  } else if (path.match(/^\/api\/organizations\/([^/]+)\/project-join-requests$/)) {
+    result = [];
+
   // Finding organisations, and projects other organisations invited us to (none in the demo)
   } else if (path === '/api/organizations/search') {
     const q = (query.get('q') || '').toLowerCase();
@@ -241,8 +428,6 @@ export async function demoRequest(endpoint, options = {}) {
   } else if (path.match(/^\/api\/organizations\/([^/]+)\/project-invitations$/)) {
     result = [];
   } else if (path.match(/^\/api\/projects\/([^/]+)\/participants$/)) {
-    result = [];
-  } else if (path.match(/^\/api\/projects\/([^/]+)\/sessions$/) && method === 'GET') {
     result = [];
 
   // People & consent
@@ -335,9 +520,10 @@ export async function demoRequest(endpoint, options = {}) {
       const item = { itemId: nextId('demo-ci'), familyId: m[1], familyName: family.name, requestingOrganizationId: DEMO_ORG_ID,
         requestingOrganizationName: state.organizations[DEMO_ORG_ID].name, providerOrganizationId: body.providerOrganizationId,
         providerOrganizationName: provider.name, internal: body.providerOrganizationId === DEMO_ORG_ID,
-        serviceType: body.serviceType, schedule: body.schedule || null, status: 'PENDING', canUpdateStatus: false,
+        serviceType: body.serviceType, schedule: body.schedule || null, status: body.providerOrganizationId === DEMO_ORG_ID ? 'ATTENDING' : 'PENDING', canUpdateStatus: body.providerOrganizationId === DEMO_ORG_ID,
         createdDate: new Date().toISOString() };
       state.carePlan.push(item);
+      recordCareEvent(state, item, 'CREATED', { toStatus: item.status, nextId });
       result = item;
     } else {
       result = state.carePlan.filter(i => i.familyId === m[1]);
@@ -350,8 +536,9 @@ export async function demoRequest(endpoint, options = {}) {
         requestingOrganizationId: DEMO_ORG_ID, requestingOrganizationName: state.organizations[DEMO_ORG_ID].name,
         providerOrganizationId: body.providerOrganizationId, providerOrganizationName: provider.name,
         internal: body.providerOrganizationId === DEMO_ORG_ID, serviceType: body.serviceType,
-        schedule: body.schedule || null, status: 'PENDING', canUpdateStatus: false, createdDate: new Date().toISOString() };
+        schedule: body.schedule || null, status: body.providerOrganizationId === DEMO_ORG_ID ? 'ATTENDING' : 'PENDING', canUpdateStatus: body.providerOrganizationId === DEMO_ORG_ID, createdDate: new Date().toISOString() };
       state.carePlan.push(item);
+      recordCareEvent(state, item, 'CREATED', { toStatus: item.status, nextId });
       result = item;
     } else {
       result = state.carePlan.filter(i => i.personId === m[1]);
@@ -363,11 +550,18 @@ export async function demoRequest(endpoint, options = {}) {
     const item = state.carePlan.find(i => i.itemId === m[1]);
     if (item.status !== 'ATTENDING') throw new Error('Only someone who is attending can be checked in. Mark them as attending first.');
     item.lastCheckedInAt = new Date().toISOString();
+    recordCareEvent(state, item, 'CHECKED_IN', { nextId });
     result = item;
   } else if ((m = path.match(/^\/api\/care-plan-items\/([^/]+)\/status$/))) {
     const item = state.carePlan.find(i => i.itemId === m[1]);
+    const previous = item.status;
     item.status = body.status;
+    recordCareEvent(state, item, 'STATUS_CHANGED', { fromStatus: previous, toStatus: body.status, note: body.note, nextId });
     result = item;
+  } else if ((m = path.match(/^\/api\/people\/([^/]+)\/care-history$/))) {
+    const person = state.people.find(x => x.personId === m[1]);
+    const ids = new Set(state.carePlan.filter(i => i.personId === m[1] || (person?.familyId && i.familyId === person.familyId)).map(i => i.itemId));
+    result = state.careEvents.filter(e => ids.has(e.itemId)).sort((a, b) => (a.occurredAt < b.occurredAt ? 1 : -1));
 
   // Staff & organisations
   } else if (path === '/api/organization/add-staff') {

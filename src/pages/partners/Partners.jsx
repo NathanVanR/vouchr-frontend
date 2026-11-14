@@ -1,16 +1,19 @@
-// Partnerships between organisations, the services each offers, and the care-plan items partners have asked this
+// Partnerships between organisations, and the care-plan items partners have asked this
 // organisation to provide. Admins agree partnerships here after agreeing them in real life; staff can only work with
 // partners that exist. A partner only ever sees a person's name and the requested service, never anything about their other help.
 import { useState } from 'react'
 import {
-  answerPartnership, checkInCarePlanItem, proposePartnership, setOrgServices, updateCarePlanStatus,
+  answerPartnership, checkInCarePlanItem, proposePartnership, updateCarePlanStatus,
 } from '../../lib/api.js'
-import { CARE_STATUS_LABELS, SERVICE_LABELS, serviceName } from '../../lib/labels.js'
+import { CARE_STATUS_LABELS, serviceName } from '../../lib/labels.js'
 import { formatDateTime } from '../../lib/format.js'
 import { useAuth } from '../../auth/useAuth.js'
 import { useApiMutation } from '../../hooks/useApiMutation.js'
 import { useDebounced } from '../../hooks/useDebounced.js'
-import { partnershipsKey, useCareItems, useOrgServices, usePartnershipList } from '../../hooks/care.js'
+import { partnershipsKey, useCareItems, usePartnershipList } from '../../hooks/care.js'
+import { useOrgProfileRequests } from '../../hooks/people.js'
+import { MISSING_FIELD_LABELS } from '../../lib/labels.js'
+import CompleteDetailsSheet from './CompleteDetailsSheet.jsx'
 import { projectKeys } from '../../hooks/projects.js'
 import { useDialogs } from '../../dialogs/useDialogs.js'
 import PageHero from '../../components/PageHero.jsx'
@@ -32,12 +35,9 @@ const NEXT_STEPS = {
   LAPSED: [['ATTENDING', 'Attending again']],
 }
 
-const serviceList = (types) => (types || []).map((t) => SERVICE_LABELS[t] || t).join(', ') || 'none listed'
-
 function PartnershipRow({ p, orgId, isAdmin, onAnswer }) {
   const weAreRequester = p.requesterOrganizationId === orgId
   const otherName = weAreRequester ? p.partnerOrganizationName : p.requesterOrganizationName
-  const otherServices = weAreRequester ? p.partnerServices : p.requesterServices
   const [tone, label] = PARTNERSHIP_BADGES[p.status] || ['', p.status]
   const note = p.status === 'PENDING' ? (weAreRequester ? 'Waiting for their admin' : 'Asked by their admin') : ''
 
@@ -45,7 +45,6 @@ function PartnershipRow({ p, orgId, isAdmin, onAnswer }) {
     <li className="list-row" style={{ alignItems: 'flex-start' }}>
       <div className="grow">
         <strong>{otherName}</strong>
-        <div className="meta">Offers: {serviceList(otherServices)}</div>
         <div className="mt" style={{ marginTop: 6 }}>
           <span className={`badge ${tone}`}>{label}</span> {note && <span className="muted small">{note}</span>}
         </div>
@@ -67,45 +66,6 @@ function PartnershipRow({ p, orgId, isAdmin, onAnswer }) {
         </div>
       )}
     </li>
-  )
-}
-
-function ServicesCard({ orgId, isAdmin }) {
-  const services = useOrgServices(orgId)
-  const [picked, setPicked] = useState(null) // null = what the server says
-  const current = picked ?? services.data ?? []
-  const save = useApiMutation((list) => setOrgServices(orgId, list), {
-    invalidate: [['org-services', orgId], partnershipsKey(orgId)],
-    success: 'Services saved.',
-    onSuccess: () => setPicked(null),
-  })
-  const toggle = (type) => setPicked(current.includes(type) ? current.filter((t) => t !== type) : [...current, type])
-
-  return (
-    <section className="card">
-      <h2>What we offer</h2>
-      <p className="muted">The kinds of help this organisation gives. Partners can only ask us for services listed here.</p>
-      <div className="mt">
-        {services.isPending && <CardSkeletons count={1} height={120} />}
-        {services.isError && <p className="message error">{services.error.message}</p>}
-        {services.isSuccess && (
-          <>
-            <div className="check-grid">
-              {Object.entries(SERVICE_LABELS).map(([type, label]) => (
-                <label className="check-row" key={type}>
-                  <input type="checkbox" checked={current.includes(type)} disabled={!isAdmin} onChange={() => toggle(type)} /> {label}
-                </label>
-              ))}
-            </div>
-            {isAdmin && (
-              <button type="button" className="btn mt" disabled={save.isPending || picked === null} onClick={() => save.mutate(current)}>
-                {save.isPending ? 'Saving…' : 'Save services'}
-              </button>
-            )}
-          </>
-        )}
-      </div>
-    </section>
   )
 }
 
@@ -142,6 +102,60 @@ function IncomingCard({ item, onStatus, onCheckIn, busy }) {
         {closable && <button type="button" className="link-btn danger" disabled={busy} onClick={() => onStatus(item, 'CLOSED')}>Remove</button>}
       </div>
     </article>
+  )
+}
+
+/** Requests partners have made of us that nobody has answered yet. */
+function WaitingForUs({ orgId, waiting }) {
+  const setStatus = useApiMutation(({ item, status }) => updateCarePlanStatus(item.itemId, status, null), {
+    invalidate: [['care-plan-items', orgId]], success: 'Updated.',
+  })
+  return (
+    <section className="card">
+      <h2>Waiting for our reply</h2>
+      <p className="muted">Partners have asked us to provide these. Accept to start, or decline if we cannot help.</p>
+      <div className="stack mt">
+        {waiting.isPending && <CardSkeletons count={1} height={110} />}
+        {waiting.isError && <p className="message error">{waiting.error.message || 'Could not load requests.'}</p>}
+        {waiting.isSuccess && waiting.data.length === 0 && <p className="muted">Nothing is waiting for us.</p>}
+        {(waiting.data ?? []).map((item) => (
+          <IncomingCard key={item.itemId} item={item} busy={setStatus.isPending}
+            onStatus={(i, status) => setStatus.mutate({ item: i, status })} onCheckIn={() => {}} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+/** Partly filled profiles a partner has asked us to complete (e.g. on a home visit). */
+function ProfilesToComplete({ orgId }) {
+  const requests = useOrgProfileRequests(orgId, 'incoming')
+  const [open, setOpen] = useState(null)
+  const list = requests.data ?? []
+  if (requests.isSuccess && list.length === 0) return null
+  return (
+    <section className="card">
+      <h2>Profiles to complete</h2>
+      <p className="muted">
+        Partners have asked us to fill in details they are missing, for example on a home visit. You only see the name and what is missing,
+        and the person disappears from this list once you save.
+      </p>
+      {requests.isPending && <CardSkeletons count={1} height={80} />}
+      {requests.isError && <p className="message error">{requests.error.message || 'Could not load requests.'}</p>}
+      <div className="stack mt">
+        {list.map((r) => (
+          <article key={r.requestId} className="card" style={{ boxShadow: 'none', border: '1.5px solid var(--line)' }}>
+            <h3>{r.personName}</h3>
+            <p className="muted small">from {r.requestingOrganizationName}{r.note ? ` · ${r.note}` : ''}</p>
+            <p className="mt">Missing: {(r.missingFields || []).map((f) => MISSING_FIELD_LABELS[f] || f).join(', ') || 'nothing'}</p>
+            <div className="actions mt">
+              <button type="button" className="btn btn-sm" onClick={() => setOpen(r)}>Complete details</button>
+            </div>
+          </article>
+        ))}
+      </div>
+      {open && <CompleteDetailsSheet orgId={orgId} request={open} onClose={() => setOpen(null)} />}
+    </section>
   )
 }
 
@@ -196,7 +210,7 @@ export default function Partners() {
   const { activeOrgId, activeOrg, isAdmin } = useAuth()
   const { confirm } = useDialogs()
   const partnerships = usePartnershipList(activeOrgId)
-  const services = useOrgServices(activeOrgId)
+  const waiting = useCareItems(activeOrgId, 'pending', '')
 
   const refresh = [partnershipsKey(activeOrgId), projectKeys.list(activeOrgId)]
   const propose = useApiMutation((org) => proposePartnership(activeOrgId, org.organizationId), {
@@ -229,15 +243,18 @@ export default function Partners() {
         stats={[
           { value: partnerships.data ? visible.filter((p) => p.status === 'ACTIVE').length : '–', label: 'Active partners' },
           { value: partnerships.data ? visible.filter((p) => p.status === 'PENDING').length : '–', label: 'Pending' },
-          { value: services.data ? services.data.length : '–', label: 'Services we offer' },
+          { value: waiting.data ? waiting.data.length : '–', label: 'Awaiting our reply' },
         ]}
       />
       <div className="page-body">
+        <WaitingForUs orgId={activeOrgId} waiting={waiting} />
+        <ProfilesToComplete orgId={activeOrgId} />
+
         <section className="card">
           <h2>Partner organisations</h2>
           <p className="muted">
             Organisations that have agreed to work with us, for example a church that offers counselling alongside our food parcels. Only
-            organisation admins set these up, after both organisations have agreed in real life. Staff can add a partner&apos;s services to a
+            organisation admins set these up, after both organisations have agreed in real life. Staff can ask a partner to provide something on a
             family&apos;s care plan, but only for partners listed here.
           </p>
           <div className="mt">
@@ -262,7 +279,6 @@ export default function Partners() {
           </section>
         )}
 
-        <ServicesCard orgId={activeOrgId} isAdmin={isAdmin} />
         <AskedOfUs orgId={activeOrgId} />
       </div>
     </>

@@ -12,6 +12,7 @@ const TABS = [
   { to: '/app/people', label: 'People', icon: 'people' },
   { to: '/app/families', label: 'Families', icon: 'family' },
   { to: '/app/partners', label: 'Partners', icon: 'partners' },
+  { to: '/app/area', label: 'Area', icon: 'calendar' },
 ]
 
 function OrgSwitch() {

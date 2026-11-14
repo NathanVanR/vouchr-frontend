@@ -16,6 +16,8 @@ import Icon from '../../components/Icon.jsx'
 import Sheet from '../../components/Sheet.jsx'
 import { CardSkeletons } from '../../components/Skeleton.jsx'
 import CarePlanSheet from '../care/CarePlanSheet.jsx'
+import HistorySheet from '../care/HistorySheet.jsx'
+import ProfileRequestSheet from './ProfileRequestSheet.jsx'
 import ConsentFlow from './ConsentFlow.jsx'
 import PersonDetail from './PersonDetail.jsx'
 import { canCaptureForChild, consentTone } from './personHelpers.js'
@@ -36,6 +38,8 @@ export default function People() {
   const [personSheet, setPersonSheet] = useState(null) // { personId } (null id = add a new person)
   const [consent, setConsent] = useState(null) // { signerPersonId, coverPersonIds }
   const [carePlan, setCarePlan] = useState(null) // the person whose care plan is open
+  const [history, setHistory] = useState(null) // the person whose history is open
+  const [askPartner, setAskPartner] = useState(null) // the person a partner is being asked to complete
 
   const all = people.data ?? []
   const selected = all.find((p) => p.personId === selectedId) || null
@@ -88,6 +92,8 @@ export default function People() {
       people={all}
       onEdit={(p) => setPersonSheet({ personId: p.personId })}
       onCarePlan={(p) => setCarePlan(p)}
+      onHistory={(p) => setHistory(p)}
+      onAskPartner={(p) => setAskPartner(p)}
       onCapture={(p) => setConsent({ signerPersonId: p.personId })}
       onCaptureChild={(p) => setConsent({ coverPersonIds: [p.personId] })}
       onWithdraw={onWithdraw}
@@ -177,6 +183,8 @@ export default function People() {
           onClose={() => setConsent(null)}
         />
       )}
+      {askPartner && <ProfileRequestSheet orgId={activeOrgId} person={askPartner} onClose={() => setAskPartner(null)} />}
+      {history && <HistorySheet person={history} onClose={() => setHistory(null)} />}
       {carePlan && (
         <CarePlanSheet
           orgId={activeOrgId}

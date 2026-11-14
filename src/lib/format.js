@@ -8,13 +8,32 @@ export const initials = (name = '') =>
     .map((part) => part[0].toUpperCase())
     .join('')
 
-export const formatDate = (iso) =>
-  iso ? new Date(iso).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+const pad2 = (n) => String(n).padStart(2, '0')
 
-export const formatDateTime = (iso) => (iso ? new Date(iso).toLocaleString('en-ZA') : '—')
+/** A date or timestamp as day/month/year (the browser's own locale order is never used). */
+export const formatDate = (iso) => {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`
+}
 
-/** A plain "YYYY-MM-DD" (an aid session date) shown in the local format. */
-export const formatDay = (day) => new Date(`${day}T00:00:00`).toLocaleDateString('en-ZA')
+export const formatDateTime = (iso) => {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return `${formatDate(iso)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+}
+
+/** A plain "YYYY-MM-DD" shown as day/month/year. */
+export const formatDay = (day) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(day || '')
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : '—'
+}
+
+/** A project's run, e.g. "01/12/2026 to 20/01/2027" or "From 01/12/2026"; '' when it has no dates. */
+export const projectDates = (p) => {
+  if (!p?.startsOn) return ''
+  return p.endsOn && p.endsOn !== p.startsOn ? `${formatDay(p.startsOn)} to ${formatDay(p.endsOn)}` : `From ${formatDay(p.startsOn)}`
+}
 
 export const todayIso = () => new Date().toISOString().slice(0, 10)
 

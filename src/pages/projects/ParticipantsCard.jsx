@@ -8,6 +8,7 @@ import Field from '../../components/Field.jsx'
 
 const STATUS_BADGES = {
   PENDING: ['info', 'Invited'],
+  REQUESTED: ['info', 'Asked to join'],
   ACTIVE: ['ok', 'Taking part'],
   DECLINED: ['bad', 'Declined'],
   ENDED: ['bad', 'Ended'],
@@ -22,7 +23,7 @@ export default function ParticipantsCard({ project, participants, enrolOrgId }) 
   const partnerships = usePartnerships(project.organizationId, project.canAdmin && project.status === 'ACTIVE')
 
   // Active partners of the owner that are not already invited.
-  const open = new Set(participants.filter((p) => p.status === 'PENDING' || p.status === 'ACTIVE').map((p) => p.organizationId))
+  const open = new Set(participants.filter((p) => p.status === 'PENDING' || p.status === 'REQUESTED' || p.status === 'ACTIVE').map((p) => p.organizationId))
   const options = (partnerships.data ?? [])
     .filter((p) => p.status === 'ACTIVE')
     .map((p) =>
@@ -37,6 +38,10 @@ export default function ParticipantsCard({ project, participants, enrolOrgId }) 
     invalidate: [projectKeys.participants(project.projectId)],
     success: 'Invitation sent. Their admin can accept it on their dashboard.',
   })
+  const answer = useApiMutation(({ id, action }) => answerProjectParticipant(id, action), {
+    invalidate: [projectKeys.participants(project.projectId), projectKeys.joinRequests(project.organizationId), projectKeys.list(enrolOrgId)],
+    success: (_, { action }) => (action === 'accept' ? 'They can now take part in this project.' : 'Request declined.'),
+  })
   const end = useApiMutation((participantId) => answerProjectParticipant(participantId, 'end'), {
     invalidate: [projectKeys.participants(project.projectId), projectKeys.beneficiaries(project.projectId), projectKeys.list(enrolOrgId)],
     success: 'Done.',
@@ -46,7 +51,7 @@ export default function ParticipantsCard({ project, participants, enrolOrgId }) 
 
   async function onEnd(participant) {
     const ok = await confirm({
-      title: participant.status === 'PENDING' ? 'Withdraw this invitation?' : 'End participation?',
+      title: participant.status === 'PENDING' ? 'Withdraw this invitation?' : participant.status === 'REQUESTED' ? 'Withdraw this request?' : 'End participation?',
       message: 'Their people are no longer shown here to the other organisation.',
       confirmLabel: 'Yes, end it',
       danger: true,
@@ -58,8 +63,8 @@ export default function ParticipantsCard({ project, participants, enrolOrgId }) 
     <section className="card">
       <h2>Partners on this project</h2>
       <p className="muted">
-        Other organisations can work on this project too. Only partner organisations can be invited, and they enrol their own
-        people. Each organisation sees the other&apos;s people only when those people agreed to be shared with partners.
+        Other organisations can work on this project too. You can invite a partner organisation, or accept a request from another organisation in
+        your area. They enrol their own people. Each organisation sees the other&apos;s people only when those people agreed to be shared with partners.
       </p>
       <ul className="mt">
         <li className="list-row">
@@ -75,9 +80,15 @@ export default function ParticipantsCard({ project, participants, enrolOrgId }) 
               <div className="grow">
                 {p.organizationName} <span className={`badge ${tone}`}>{label}</span>
               </div>
-              {p.canEnd && (
+              {p.status === 'REQUESTED' && p.canRespond && (
+                <>
+                  <button type="button" className="btn btn-sm" disabled={answer.isPending} onClick={() => answer.mutate({ id: p.participantId, action: 'accept' })}>Accept</button>
+                  <button type="button" className="link-btn danger" disabled={answer.isPending} onClick={() => answer.mutate({ id: p.participantId, action: 'decline' })}>Decline</button>
+                </>
+              )}
+              {p.canEnd && !(p.status === 'REQUESTED' && p.canRespond) && (
                 <button type="button" className="link-btn danger" onClick={() => onEnd(p)}>
-                  {p.status === 'PENDING' ? 'Withdraw invitation' : p.organizationId === enrolOrgId && project.participant ? 'Leave project' : 'Remove'}
+                  {p.status === 'PENDING' ? 'Withdraw invitation' : p.status === 'REQUESTED' ? 'Withdraw request' : p.organizationId === enrolOrgId && project.participant ? 'Leave project' : 'Remove'}
                 </button>
               )}
             </li>

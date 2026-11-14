@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { answerProjectParticipant } from '../../lib/api.js'
 import { projectTypeName, serviceName } from '../../lib/labels.js'
+import { projectDates } from '../../lib/format.js'
 import { useAuth } from '../../auth/useAuth.js'
 import { useApiMutation } from '../../hooks/useApiMutation.js'
-import { projectKeys, useProjectInvitations, useProjects } from '../../hooks/projects.js'
+import { projectKeys, useProjectInvitations, useProjectJoinRequests, useProjects } from '../../hooks/projects.js'
 import { usePeople } from '../../hooks/people.js'
 import PageHero from '../../components/PageHero.jsx'
 import Empty from '../../components/Empty.jsx'
@@ -31,6 +32,7 @@ function ProjectCard({ project }) {
       <span className="kicker">{projectTypeName(project.projectType, project.typeLabel)}</span>
       <strong>{project.name}</strong>
       {project.participant && <span className="muted small">Run by {project.organizationName}</span>}
+      {project.startsOn && <span className="muted small">{projectDates(project)}</span>}
       {project.description && <span className="muted">{project.description}</span>}
       <span className="badges">
         {project.status === 'ARCHIVED' && <span className="badge">Archived</span>}
@@ -78,6 +80,42 @@ function Invitations({ orgId, isAdmin }) {
   )
 }
 
+/** Other organisations asking to join projects we run; the owner's admin answers. */
+function JoinRequests({ orgId, isAdmin }) {
+  const { data: requests = [] } = useProjectJoinRequests(orgId)
+  const answer = useApiMutation(({ id, action }) => answerProjectParticipant(id, action), {
+    invalidate: [projectKeys.joinRequests(orgId), ['participants']],
+    success: (_, { action }) => (action === 'accept' ? 'They can now take part.' : 'Request declined.'),
+  })
+  if (!requests.length) return null
+
+  return (
+    <>
+      {requests.map((r) => (
+        <div className="invite-card" key={r.participantId}>
+          <div className="dot"><Icon name="partners" /></div>
+          <div className="grow">
+            <strong>{r.organizationName}</strong> asked to join <strong>{r.projectName}</strong>
+            <div className="muted small">{projectTypeName(r.projectType, r.projectTypeLabel)}</div>
+          </div>
+          {isAdmin && r.canRespond ? (
+            <div className="actions">
+              <button type="button" className="btn btn-sm" disabled={answer.isPending} onClick={() => answer.mutate({ id: r.participantId, action: 'accept' })}>
+                Accept
+              </button>
+              <button type="button" className="link-btn danger" disabled={answer.isPending} onClick={() => answer.mutate({ id: r.participantId, action: 'decline' })}>
+                Decline
+              </button>
+            </div>
+          ) : (
+            <span className="muted small">An admin can answer</span>
+          )}
+        </div>
+      ))}
+    </>
+  )
+}
+
 export default function Projects() {
   const { activeOrgId, activeOrg, isAdmin } = useAuth()
   const projects = useProjects(activeOrgId)
@@ -112,6 +150,7 @@ export default function Projects() {
 
       <div className="page-body">
         <Invitations orgId={activeOrgId} isAdmin={isAdmin} />
+        <JoinRequests orgId={activeOrgId} isAdmin={isAdmin} />
 
         {projects.isPending && <CardSkeletons count={3} height={110} />}
         {projects.isError && <p className="message error">{projects.error.message || 'Failed to load projects.'}</p>}
