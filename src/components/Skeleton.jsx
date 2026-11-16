@@ -14,5 +14,10 @@ export function CardSkeletons({ count = 3, height = 96 }) {
 }
 
 export function Splash() {
-  return <div className="splash">Vouchr</div>
+  return (
+    <div className="splash">
+      <img src="/favicon.svg" alt="" />
+      <span>Vouchr</span>
+    </div>
+  )
 }
