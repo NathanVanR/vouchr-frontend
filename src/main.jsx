@@ -8,6 +8,7 @@ import { ToastProvider } from './toast/ToastProvider.jsx'
 import { DialogProvider } from './dialogs/DialogProvider.jsx'
 import { Splash } from './components/Skeleton.jsx'
 import UpdatePrompt from './components/UpdatePrompt.jsx'
+import StagingBanner from './components/StagingBanner.jsx'
 import { router } from './router.jsx'
 import './styles/tokens.css'
 import './styles/base.css'
@@ -22,6 +23,7 @@ createRoot(document.getElementById('root')).render(
           <DialogProvider>
             <RouterProvider router={router} fallbackElement={<Splash />} />
             <UpdatePrompt />
+            <StagingBanner />
           </DialogProvider>
         </ToastProvider>
       </AuthProvider>

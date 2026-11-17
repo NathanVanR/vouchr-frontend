@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase.js'
 import { getMe, getPlatformMe, syncMyEmail } from '../lib/api.js'
+import { isStaging } from '../config.js'
 import { isDemo, exitDemoMode } from '../lib/demo.js'
 import { isAdminRole } from '../lib/labels.js'
 import { AuthContext } from './context.js'
@@ -102,7 +103,8 @@ export function AuthProvider({ children }) {
       exitDemoMode()
       return
     }
-    await supabase.auth.signOut()
+    // staging has no auth server to tell, so only forget the session here
+    await supabase.auth.signOut(isStaging ? { scope: 'local' } : undefined)
     queryClient.clear()
     window.location.href = '/'
   }, [demo, queryClient])

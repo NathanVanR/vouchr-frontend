@@ -18,11 +18,14 @@ function readUrlError() {
 }
 export const urlError = readUrlError()
 
+/** localStorage key the auth client keeps the session under. */
+export const storageKey = `sb-${new URL(url).hostname.split('.')[0]}-auth-token`
+
 export const supabase = {
   auth: new GoTrueClient({
     url: `${url}/auth/v1`,
     headers: { Authorization: `Bearer ${anonKey}`, apikey: anonKey },
-    storageKey: `sb-${new URL(url).hostname.split('.')[0]}-auth-token`,
+    storageKey,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,

@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase.js'
 import { getMe } from '../lib/api.js'
 import { isEmailNotConfirmed, resendConfirmation } from '../lib/authFlow.js'
 import { useAuth } from '../auth/useAuth.js'
+import { isStaging } from '../config.js'
+import StagingLogin from './StagingLogin.jsx'
 import AuthLayout from '../components/AuthLayout.jsx'
 import Field from '../components/Field.jsx'
 import GoogleButton from '../components/GoogleButton.jsx'
@@ -21,6 +23,8 @@ export default function Login() {
   const [resent, setResent] = useState('')
 
   if (status === 'authed') return <Navigate to={location.state?.from || '/app/projects'} replace />
+
+  if (isStaging) return <StagingLogin />
 
   async function submit(e) {
     e.preventDefault()

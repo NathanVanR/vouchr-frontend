@@ -1,7 +1,19 @@
 // Picks the API and Supabase settings by hostname, same values as the old js/config.js.
 const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname)
 
-export const config = isLocal
+// STAGING build (Cloudflare Pages env var VITE_STAGING=true): a separate API and database with made-up data, and a
+// "log in as a test user" screen instead of Supabase. The flag is baked in at build time, so a production build
+// (no flag) can never behave like staging.
+export const isStaging = import.meta.env.VITE_STAGING === 'true'
+const stagingApi = import.meta.env.VITE_API_BASE_URL || ''
+
+export const config = isStaging
+  ? {
+      // the auth client needs some URL; staging never calls it (see lib/stagingLogin.js)
+      supabase: { url: stagingApi || 'https://staging.invalid', anonKey: 'staging' },
+      apiBaseUrl: stagingApi,
+    }
+  : isLocal
   ? {
       // Local: Vite dev server + local Supabase (GoTrue) + local API
       supabase: {
