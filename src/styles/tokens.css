@@ -27,6 +27,7 @@
   --shadow-up: 0 -6px 20px rgba(14, 122, 90, 0.1);
 
   --font: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-brand: 'Pacifico', 'Brush Script MT', cursive; /* the handwritten wordmark, matches the "v" mark */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --nav-h: 76px;

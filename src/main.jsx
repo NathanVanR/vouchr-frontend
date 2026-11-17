@@ -10,10 +10,16 @@ import { Splash } from './components/Skeleton.jsx'
 import UpdatePrompt from './components/UpdatePrompt.jsx'
 import StagingBanner from './components/StagingBanner.jsx'
 import { router } from './router.jsx'
+import { reloadForNewVersion } from './lib/staleVersion.js'
 import './styles/tokens.css'
 import './styles/base.css'
 import './styles/shell.css'
 import './styles/pages.css'
+
+// Vite fires this when a lazily loaded file (or its CSS) is gone after a deploy: reload once to get the new version.
+window.addEventListener('vite:preloadError', (event) => {
+  if (reloadForNewVersion()) event.preventDefault()
+})
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
